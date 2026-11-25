@@ -75,10 +75,30 @@ the device and has nothing to sell you.
 - Encrypted database, optional biometric app lock, hidden from screenshots and recents, no cloud
   backup; CSV export and full JSON backup/restore
 
-## Install
+## Install (test build)
 
-Kankoo has no released APK yet. Build it from source (see Development below), then grant SMS access
-when Kankoo asks.
+> **Warning: for testing only.** Kankoo has known security gaps that are not fixed yet. Use made-up
+> transactions, preferably on a spare phone. Do not allow SMS access, and do not connect email or AI.
+
+You need Android 11 or newer on a 64-bit ARM phone. There is no finished release yet.
+
+1. Sign in to GitHub, open [Build test APK](https://github.com/balaji-ml-eng/Kankoo/actions/workflows/build-apk.yml)
+   and select the latest successful run.
+2. Under **Artifacts**, download `kankoo-debug-apk` and extract the ZIP to get `app-debug.apk`.
+   Downloads expire after 14 days. If none is available, the repository owner can start a new build
+   with **Run workflow**.
+3. Copy the APK to your phone and open it. If asked, allow your file app to install unknown apps,
+   and turn that permission off afterwards.
+
+A later test build may not install over this one. Uninstalling the app deletes its saved data.
+
+### Test checklist
+
+- [ ] The app installs and opens, with the Kankoo name and **K** icon.
+- [ ] The Home, Activity, Insights, Ask and Settings screens open (without connecting AI).
+- [ ] You can add, edit and delete a made-up transaction.
+- [ ] Transactions remain after closing and reopening the app.
+- [ ] Text and buttons are easy to read and use.
 
 ## Setup guides
 
