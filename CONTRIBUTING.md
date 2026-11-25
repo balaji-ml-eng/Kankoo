@@ -1,8 +1,8 @@
-# Contributing to Pckt
+# Contributing to Kankoo
 
-Thanks for helping. The most useful contributions are usually **messages Pckt reads wrongly or not at all**.
+Thanks for helping. The most useful contributions are usually **messages Kankoo reads wrongly or not at all**.
 
-## Reporting a message Pckt doesn't read
+## Reporting a message Kankoo doesn't read
 
 Open an issue with:
 
@@ -10,7 +10,7 @@ Open an issue with:
 - the message text, **with personal details replaced**: your name, full or partial account and card
   numbers, UPI IDs, reference numbers and balances. Keep the layout, punctuation and wording exactly
   as they are, because the parser depends on them.
-- what Pckt showed (Settings → Sources → Inspect explains each decision) and what it should have shown
+- what Kankoo showed (Settings → Sources → Inspect explains each decision) and what it should have shown
 
 ## Code
 

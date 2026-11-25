@@ -261,7 +261,7 @@ final smsAlertsProvider = NotifierProvider<SmsAlertsController, bool>(SmsAlertsC
 
 // ------------------------------------------------- share / shortcut intake
 
-/// Ingests text shared to Pckt (share sheet, pckt://ingest links) through
+/// Ingests text shared to Kankoo (share sheet, kankoo://ingest links) through
 /// the normal pipeline. State is the latest outcome, for a snackbar.
 class ShareIntakeController extends Notifier<ShareOutcome?> {
   bool _busy = false;

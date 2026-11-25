@@ -8,7 +8,7 @@ import '../llm_client.dart';
 import 'model_catalog.dart';
 import 'on_device_scheduler.dart';
 
-void onDeviceLog(String message) => debugPrint('[pckt-ondevice] $message');
+void onDeviceLog(String message) => debugPrint('[kankoo-ondevice] $message');
 
 /// [LlmClient] backed by a model running inside the app (LiteRT-LM via
 /// flutter_edge_ai). Nothing leaves the phone.

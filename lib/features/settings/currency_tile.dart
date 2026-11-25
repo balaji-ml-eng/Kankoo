@@ -28,7 +28,7 @@ class HomeCurrencyTile extends ConsumerWidget {
 }
 
 /// Picks a new home currency. With data already recorded, first explains
-/// what changes: nothing is converted (Pckt has no exchange rates).
+/// what changes: nothing is converted (Kankoo has no exchange rates).
 Future<void> changeHomeCurrency(BuildContext context, WidgetRef ref, {bool confirm = true}) async {
   final current = ref.read(homeCurrencyProvider);
   final code = await showCurrencyPicker(context, selected: current, title: 'Home currency');

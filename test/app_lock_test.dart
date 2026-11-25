@@ -1,7 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:pckt/core/security/app_lock.dart';
-import 'package:pckt/providers.dart';
+import 'package:kankoo/core/security/app_lock.dart';
+import 'package:kankoo/providers.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class FakeAuth implements Authenticator {

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Android 12+ system splash: the Pckt icon disc on paper / ink
+    <!-- Android 12+ system splash: the Kankoo icon disc on paper / ink
          (splash_background follows the system dark mode). -->
     <style name="LaunchTheme" parent="@android:style/Theme.Black.NoTitleBar">
         <item name="android:windowSplashScreenBackground">@color/splash_background</item>

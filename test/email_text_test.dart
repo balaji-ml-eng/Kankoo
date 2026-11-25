@@ -1,8 +1,8 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:pckt/ingestion/email/email_source.dart';
-import 'package:pckt/ingestion/email/email_text.dart';
-import 'package:pckt/ingestion/email/gmail_api_source.dart';
-import 'package:pckt/ingestion/email/imap_source.dart';
+import 'package:kankoo/ingestion/email/email_source.dart';
+import 'package:kankoo/ingestion/email/email_text.dart';
+import 'package:kankoo/ingestion/email/gmail_api_source.dart';
+import 'package:kankoo/ingestion/email/imap_source.dart';
 
 void main() {
   test('htmlToText drops head, scripts, styles and keeps structure', () {

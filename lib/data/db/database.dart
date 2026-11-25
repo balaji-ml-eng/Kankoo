@@ -35,7 +35,7 @@ extension TxnMoney on Transaction {
 
 @DriftDatabase(tables: [Accounts, Categories, Transactions, RawMessages, MerchantRules, Budgets])
 class AppDatabase extends _$AppDatabase {
-  /// Without an [executor], opens the SQLCipher-encrypted `pckt.sqlite`
+  /// Without an [executor], opens the SQLCipher-encrypted `kankoo.sqlite`
   /// (migrating a plaintext one first) — see [openAppDatabase].
   AppDatabase([QueryExecutor? executor]) : super(executor ?? openAppDatabase());
 

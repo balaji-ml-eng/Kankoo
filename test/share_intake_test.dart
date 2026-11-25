@@ -2,18 +2,18 @@ import 'package:drift/drift.dart' hide isNull, isNotNull;
 import 'package:drift/native.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:pckt/data/db/database.dart';
-import 'package:pckt/ingestion/ingestion_service.dart';
-import 'package:pckt/ingestion/parser/parsed_txn.dart';
-import 'package:pckt/ingestion/share/share_intake.dart';
+import 'package:kankoo/data/db/database.dart';
+import 'package:kankoo/ingestion/ingestion_service.dart';
+import 'package:kankoo/ingestion/parser/parsed_txn.dart';
+import 'package:kankoo/ingestion/share/share_intake.dart';
 
 const hdfc = 'Sent Rs.250.00\nFrom HDFC Bank A/C *4521\nTo SWIGGY\nOn 12/10/26\nRef 528512345678\nNot You?';
 
 void main() {
-  group('pckt://ingest links', () {
+  group('kankoo://ingest links', () {
     test('parses text and sender (percent-encoded)', () {
       final uri = Uri.parse(
-        'pckt://ingest?text=${Uri.encodeQueryComponent(hdfc)}&sender=${Uri.encodeQueryComponent('JD-HDFCBK-S')}',
+        'kankoo://ingest?text=${Uri.encodeQueryComponent(hdfc)}&sender=${Uri.encodeQueryComponent('JD-HDFCBK-S')}',
       );
       final s = SharedText.fromUri(uri)!;
       expect(s.text, hdfc.trim());
@@ -23,17 +23,17 @@ void main() {
 
     test('rejects other schemes, hosts and empty text', () {
       expect(SharedText.fromUri(Uri.parse('https://ingest?text=hi')), isNull);
-      expect(SharedText.fromUri(Uri.parse('pckt://other?text=hi')), isNull);
-      expect(SharedText.fromUri(Uri.parse('pckt://ingest?text=')), isNull);
-      expect(SharedText.fromUri(Uri.parse('pckt://ingest')), isNull);
+      expect(SharedText.fromUri(Uri.parse('kankoo://other?text=hi')), isNull);
+      expect(SharedText.fromUri(Uri.parse('kankoo://ingest?text=')), isNull);
+      expect(SharedText.fromUri(Uri.parse('kankoo://ingest')), isNull);
     });
 
-    test('IncomingShares claims pckt links ahead of the router', () async {
+    test('IncomingShares claims kankoo links ahead of the router', () async {
       TestWidgetsFlutterBinding.ensureInitialized();
       final shares = IncomingShares.instance;
       shares.drain();
       final claimed = await shares.didPushRouteInformation(
-        RouteInformation(uri: Uri.parse('pckt://ingest?text=Rs%20100%20debited')),
+        RouteInformation(uri: Uri.parse('kankoo://ingest?text=Rs%20100%20debited')),
       );
       expect(claimed, isTrue);
       expect(await shares.didPushRouteInformation(RouteInformation(uri: Uri.parse('/activity'))), isFalse);

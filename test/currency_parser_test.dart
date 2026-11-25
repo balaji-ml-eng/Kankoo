@@ -1,9 +1,9 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:pckt/data/db/tables.dart';
-import 'package:pckt/ingestion/parser/currency_text.dart';
-import 'package:pckt/ingestion/parser/email_parser.dart';
-import 'package:pckt/ingestion/parser/parsed_txn.dart';
-import 'package:pckt/ingestion/parser/sms_parser.dart';
+import 'package:kankoo/data/db/tables.dart';
+import 'package:kankoo/ingestion/parser/currency_text.dart';
+import 'package:kankoo/ingestion/parser/email_parser.dart';
+import 'package:kankoo/ingestion/parser/parsed_txn.dart';
+import 'package:kankoo/ingestion/parser/sms_parser.dart';
 
 ParseResult p(String sender, String body, {String home = 'INR'}) => SmsParser(home: home).parse(
   RawInput(

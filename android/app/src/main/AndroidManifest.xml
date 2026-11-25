@@ -12,7 +12,7 @@
     <!-- Optional app lock (local_auth). -->
     <uses-permission android:name="android.permission.USE_BIOMETRIC" />
     <application
-        android:label="Pckt"
+        android:label="Kankoo"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher"
         android:roundIcon="@mipmap/ic_launcher_round"
@@ -41,21 +41,21 @@
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
-            <!-- Share a bank SMS / text to Pckt (singleTask keeps one instance, so a
+            <!-- Share a bank SMS / text to Kankoo (singleTask keeps one instance, so a
                  share from another app reaches the running app via onNewIntent). -->
             <intent-filter>
                 <action android:name="android.intent.action.SEND"/>
                 <category android:name="android.intent.category.DEFAULT"/>
                 <data android:mimeType="text/plain"/>
             </intent-filter>
-            <!-- pckt://ingest?text=…&sender=… (same path as share). -->
+            <!-- kankoo://ingest?text=…&sender=… (same path as share). -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW"/>
                 <category android:name="android.intent.category.DEFAULT"/>
                 <category android:name="android.intent.category.BROWSABLE"/>
-                <data android:scheme="pckt" android:host="ingest"/>
+                <data android:scheme="kankoo" android:host="ingest"/>
             </intent-filter>
-            <!-- pckt:// links are handled natively (MainActivity.captureShare), not
+            <!-- kankoo:// links are handled natively (MainActivity.captureShare), not
                  pushed to the router as routes. -->
             <meta-data android:name="flutter_deeplinking_enabled" android:value="false" />
         </activity>

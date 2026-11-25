@@ -27,7 +27,7 @@ class LocalNotifications {
     try {
       final plugin = _plugin ??= FlutterLocalNotificationsPlugin();
       final ok = await plugin.initialize(
-        settings: const InitializationSettings(android: AndroidInitializationSettings('@drawable/ic_stat_pckt')),
+        settings: const InitializationSettings(android: AndroidInitializationSettings('@drawable/ic_stat_kankoo')),
       );
       return ok ?? false;
     } catch (e) {

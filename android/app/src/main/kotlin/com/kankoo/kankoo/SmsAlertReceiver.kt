@@ -1,4 +1,4 @@
-package com.pckt.pckt
+package com.kankoo.kankoo
 
 import android.Manifest
 import android.app.NotificationChannel
@@ -175,7 +175,7 @@ class SmsAlertReceiver : BroadcastReceiver() {
             )
             val verb = if (alert.debit) "debited" else "credited"
             val notification = NotificationCompat.Builder(context, CHANNEL_ID)
-                .setSmallIcon(R.drawable.ic_stat_pckt)
+                .setSmallIcon(R.drawable.ic_stat_kankoo)
                 .setContentTitle("${alert.amount} $verb · ${alert.bank}")
                 .setContentText("Tap to review")
                 .setCategory(NotificationCompat.CATEGORY_STATUS)

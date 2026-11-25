@@ -6,17 +6,17 @@ import 'package:drift/drift.dart' hide isNull, isNotNull;
 import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:pckt/core/currency.dart';
-import 'package:pckt/data/backup/data_export.dart';
-import 'package:pckt/data/db/database.dart';
-import 'package:pckt/features/budgets/budget_math.dart';
-import 'package:pckt/features/stats.dart';
-import 'package:pckt/ingestion/ingestion_service.dart';
-import 'package:pckt/ingestion/parser/parsed_txn.dart';
-import 'package:pckt/llm/agent/finance_agent.dart';
-import 'package:pckt/llm/agent/finance_tools.dart';
-import 'package:pckt/llm/llm_client.dart';
-import 'package:pckt/providers.dart';
+import 'package:kankoo/core/currency.dart';
+import 'package:kankoo/data/backup/data_export.dart';
+import 'package:kankoo/data/db/database.dart';
+import 'package:kankoo/features/budgets/budget_math.dart';
+import 'package:kankoo/features/stats.dart';
+import 'package:kankoo/ingestion/ingestion_service.dart';
+import 'package:kankoo/ingestion/parser/parsed_txn.dart';
+import 'package:kankoo/llm/agent/finance_agent.dart';
+import 'package:kankoo/llm/agent/finance_tools.dart';
+import 'package:kankoo/llm/llm_client.dart';
+import 'package:kankoo/providers.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 AppDatabase memoryDb() => AppDatabase(DatabaseConnection(NativeDatabase.memory()));
@@ -38,7 +38,7 @@ void main() {
   tearDown(() => Currencies.home = 'INR');
 
   test('v3 → v4 migration keeps every row and marks it INR', () async {
-    final dir = await Directory.systemTemp.createTemp('pckt_mig4');
+    final dir = await Directory.systemTemp.createTemp('kankoo_mig4');
     final file = File('${dir.path}/db.sqlite');
     try {
       var db = AppDatabase(NativeDatabase(file));

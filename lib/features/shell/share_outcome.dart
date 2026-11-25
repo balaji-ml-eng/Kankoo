@@ -5,7 +5,7 @@ import '../../data/db/database.dart';
 import '../../ingestion/share/share_intake.dart';
 import '../activity/transaction_sheet.dart';
 
-/// Snackbar describing what happened to text shared to Pckt.
+/// Snackbar describing what happened to text shared to Kankoo.
 void showShareOutcome(BuildContext context, ShareOutcome o) {
   String describe(Transaction t) =>
       '${money(t.amountMinor, currency: t.currency)} ${t.direction == TxnDirection.debit ? 'spent' : 'received'}'

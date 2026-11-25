@@ -3,7 +3,7 @@ import 'dart:io';
 import 'package:flutter/services.dart';
 
 /// Hardware facts the model picker needs. Read once from the native
-/// `pckt/device` channel (see MainActivity.kt).
+/// `kankoo/device` channel (see MainActivity.kt).
 class DeviceProfile {
   const DeviceProfile({
     required this.totalRamBytes,
@@ -74,7 +74,7 @@ class DeviceProfile {
     hasOpenCl: m['hasOpenCl'] == true,
   );
 
-  static const _channel = MethodChannel('pckt/device');
+  static const _channel = MethodChannel('kankoo/device');
 
   /// True on mobile data or a metered hotspot. False off Android.
   static Future<bool> isMetered() async =>

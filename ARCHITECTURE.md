@@ -1,6 +1,6 @@
-# Pckt: architecture and development
+# Kankoo: architecture and development
 
-How Pckt works inside, for contributors. What the app does and how to set it up is in the
+How Kankoo works inside, for contributors. What the app does and how to set it up is in the
 [README](README.md); how to send a fix is in [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Run
@@ -20,7 +20,7 @@ lib/
     parser/             rule-based SMS parser (bank sender ids, amounts, refs, VPAs, merchants)
     dedup/              scoring engine that merges the same payment seen via multiple sources
     categorizer.dart    learned merchant rules → structural hints → keyword lists → fallback
-    sms/                Android SMS inbox reader (MethodChannel `pckt/sms`, see MainActivity.kt)
+    sms/                Android SMS inbox reader (MethodChannel `kankoo/sms`, see MainActivity.kt)
     email/              IMAP (enough_mail) + Gmail API sources, HTML→text, EmailSyncController
     parser/email_*      email parser: sender-domain directory, bank alerts via SMS rules, merchant receipts
   data/db/              drift schema: accounts, categories, transactions, raw_messages, merchant_rules
@@ -66,21 +66,21 @@ ISO 4217 code on every transaction and account (schema v4; rows from v1.0 are IN
 - **Home currency.** Chosen at onboarding (defaulted from the phone's region) and in
   Settings → Money → Currency. Existing installs keep INR. Totals, budgets, charts, notifications,
   the assistant and its tools use it. Budgets remember their currency and pause if you switch.
-- **Foreign transactions.** Pckt has no server and never fetches exchange rates. A message that
+- **Foreign transactions.** Kankoo has no server and never fetches exchange rates. A message that
   states the home-currency equivalent is stored with both amounts and counts at once. Otherwise the
   transaction keeps its own currency, is shown with "not in totals", and you add what the bank
   charged (or a rate) from the transaction; until then it is left out of totals rather than guessed.
   The dashboard says how many are waiting.
 - **Parsing.** Markers are read with the amount: `Rs`/`₹`/`INR`, ISO codes before or after the
   number, `$ US$ S$ A$ C$ NZ$ R$ € £ ¥ ₩ ₱ ₫ ฿ ₦ ₺ ৳ RM Rp KSh`. A bare `$` or `Rs` means the home
-  dollar/rupee when it is one (USD/INR otherwise). Alerts from senders Pckt doesn't know still parse
+  dollar/rupee when it is one (USD/INR otherwise). Alerts from senders Kankoo doesn't know still parse
   at a lower confidence and are marked for review.
 - **Supported:** INR, AED, SAR, QAR, KWD, OMR, BHD, SGD, MYR, USD, GBP, CAD, AUD, NZD, EUR, BDT, PKR,
   LKR, NPR, IDR, PHP, VND, THB, NGN, KES, ZAR, BRL, MXN, TRY, JPY, KRW.
 
 ## Email
 
-Settings → Sources → Email → Connect. Pckt searches the INBOX since the chosen
+Settings → Sources → Email → Connect. Kankoo searches the INBOX since the chosen
 import window (1/3/6/12 months, then incrementally with a 1-day overlap, max 400
 messages per sync) for mail from known bank / card / UPI / merchant domains or with
 payment words in the subject, downloads only those, converts HTML to text and runs
@@ -97,12 +97,12 @@ App-password setup for each provider is in the README (*Connect your email*).
 has an OAuth client id. One-time Google Cloud setup:
 
 1. console.cloud.google.com → create a project → *APIs & Services → Library* → enable **Gmail API**.
-2. *OAuth consent screen*: External, app name "Pckt", add scope
+2. *OAuth consent screen*: External, app name "Kankoo", add scope
    `https://www.googleapis.com/auth/gmail.readonly`, add your Google account as a **test user**
    (Testing mode is enough for personal use; `gmail.readonly` is a restricted scope, so
    publishing would need Google verification).
 3. *Credentials → Create credentials → OAuth client ID → Android*: package name
-   `com.pckt.pckt`, SHA-1 of the signing key. For debug builds:
+   `com.kankoo.kankoo`, SHA-1 of the signing key. For debug builds:
    ```sh
    keytool -list -v -keystore ~/.android/debug.keystore -alias androiddebugkey -storepass android -keypass android
    ```
@@ -125,7 +125,7 @@ rule-parsed messages. The Ask agent runs at most 8 tool steps.
 ## On-device models
 
 The model is chosen in `lib/llm/on_device/model_catalog.dart` from the phone's RAM, chip, free
-storage, Android version and GPU support (`pckt/device` channel).
+storage, Android version and GPU support (`kankoo/device` channel).
 
 - Runs on the GPU (OpenCL) and falls back to CPU; Gemma 4 runs at float32 because half precision
   copies digits wrongly from long prompts.
@@ -159,7 +159,7 @@ storage, Android version and GPU support (`pckt/device` channel).
   interrupted.
 - **Timeouts** depend on the model size and the job: e.g. ~3.5 min per Ask turn and ~7 min per batch
   for Gemma 4 E2B; a timed-out Ask turn says so plainly.
-- **Measuring.** Every turn logs one line tagged `[pckt-ondevice]` (`adb logcat -s flutter`):
+- **Measuring.** Every turn logs one line tagged `[kankoo-ondevice]` (`adb logcat -s flutter`):
   queue wait, load time (warm or cold), new vs reused conversation, prefill (time to first token),
   decode time, output size and total.
 
@@ -169,24 +169,24 @@ storage, Android version and GPU support (`pckt/device` channel).
 `READ_SMS`). If a message comes from a known bank DLT sender (`VM-HDFCBK`, `AD-ICICIT-S`, not
 `-P` promos) and has a completed debit/credit verb plus an amount, it posts *"₹250 debited · HDFC —
 Tap to review"* (or *"USD 12.50 debited · HDFC"* for a spend abroad) on the **Transaction alerts**
-channel; it reads the home currency from `flutter.currency.home`. Tapping opens Pckt, which syncs SMS on resume;
+channel; it reads the home currency from `flutter.currency.home`. Tapping opens Kankoo, which syncs SMS on resume;
 the receiver itself stores nothing, so the Dart pipeline stays the source of truth. Turn it off in
 Settings → SMS → *Instant alerts* (pref `sms.alerts`, read natively as `flutter.sms.alerts`).
-Android 13+ also needs the notification permission, which Pckt asks for once.
+Android 13+ also needs the notification permission, which Kankoo asks for once.
 
 ## Security
 
-- **Encrypted database.** `pckt.sqlite` is a SQLCipher 4 database (AES-256). `package:sqlite3` bundles
+- **Encrypted database.** `kankoo.sqlite` is a SQLCipher 4 database (AES-256). `package:sqlite3` bundles
   the SQLCipher build instead of SQLite through `hooks: user_defines: sqlite3: source: sqlcipher` in
   `pubspec.yaml` (it also applies to `flutter test` on the desktop VM). A random 256-bit key is created
   on first run and kept in the Android keystore via `flutter_secure_storage`; it is used as a raw key,
   so opening costs no key derivation (`lib/data/db/db_encryption.dart`).
 - **Upgrading from a plaintext install** happens once, on the first open: the plaintext file is
-  exported into `pckt.sqlite.enc-tmp` with `sqlcipher_export`, per-table row counts, `user_version` and
+  exported into `kankoo.sqlite.enc-tmp` with `sqlcipher_export`, per-table row counts, `user_version` and
   integrity checks are compared, the files are swapped by rename, the result is verified again, and only
-  then is the plaintext copy (`pckt.sqlite.plain-bak`) deleted. Any failure keeps the app on the
-  plaintext database and it retries on the next start. Every step logs with `[pckt-db]`. If the key is
-  ever lost (keystore wiped) the unreadable file is kept aside as `pckt.sqlite.unreadable-<time>` and a
+  then is the plaintext copy (`kankoo.sqlite.plain-bak`) deleted. Any failure keeps the app on the
+  plaintext database and it retries on the next start. Every step logs with `[kankoo-db]`. If the key is
+  ever lost (keystore wiped) the unreadable file is kept aside as `kankoo.sqlite.unreadable-<time>` and a
   new database is started.
 - **No backups.** Android cloud backup and device-to-device transfer are disabled — the data and the
   key both stay on the phone (use the app's own export to move data).
@@ -207,7 +207,7 @@ sideloading. For a proper upload key (keep it safe and never commit it — `*.jk
 `key.properties` are gitignored):
 
 ```sh
-keytool -genkey -v -keystore ~/pckt-upload.jks -keyalg RSA -keysize 2048 -validity 10000 -alias upload
+keytool -genkey -v -keystore ~/kankoo-upload.jks -keyalg RSA -keysize 2048 -validity 10000 -alias upload
 ```
 
 then create `android/key.properties`:
@@ -216,7 +216,7 @@ then create `android/key.properties`:
 storePassword=<store password>
 keyPassword=<key password>
 keyAlias=upload
-storeFile=C:/Users/<you>/pckt-upload.jks
+storeFile=C:/Users/<you>/kankoo-upload.jks
 ```
 
 `storeFile` is resolved relative to `android/app/` unless absolute. Note that an APK signed with a new
@@ -229,7 +229,7 @@ The mark — a white "P" whose bowl is a pocket holding a mint coin, on the viol
 defined once in `tool/gen_brand_assets.js` (`node tool/gen_brand_assets.js`, no npm packages), which
 writes the SVG sources in `assets/branding/`, the Android adaptive icon (vector foreground, gradient
 background, `<monochrome>` layer for Android 13+ themed icons), the notification small icon
-`@drawable/ic_stat_pckt` (white on transparent, kept through resource shrinking by
+`@drawable/ic_stat_kankoo` (white on transparent, kept through resource shrinking by
 `res/raw/keep.xml`), legacy PNGs, the splash images, the iOS AppIcon (default, dark and tinted iOS 18
 appearances) and previews on light and dark home screens in `assets/branding/previews/`. The splash is
 the icon disc on paper in light mode and on ink in dark mode (Android 12+ system splash and the older

@@ -225,7 +225,7 @@ class AiJobsController extends Notifier<AiJobsState> {
       }
       if (config.aiCategorise && !stopped) await categorise(maxBatches: policy.maxBatchesPerRun);
       if (_yielded) {
-        debugPrint('[pckt-ondevice] background AI paused for the user; will resume');
+        debugPrint('[kankoo-ondevice] background AI paused for the user; will resume');
         _scheduleResume();
       } else {
         await prefs.setInt(lastAutoRunKey, DateTime.now().millisecondsSinceEpoch);

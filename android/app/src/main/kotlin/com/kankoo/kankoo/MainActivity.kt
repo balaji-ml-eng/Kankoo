@@ -1,4 +1,4 @@
-package com.pckt.pckt
+package com.kankoo.kankoo
 
 import android.Manifest
 import android.app.ActivityManager
@@ -26,7 +26,7 @@ class MainActivity : FlutterFragmentActivity() {
     private val main = Handler(Looper.getMainLooper())
     private var pendingPermission: MethodChannel.Result? = null
 
-    /** Text shared to Pckt / pckt://ingest links not yet taken by Dart. */
+    /** Text shared to Kankoo / kankoo://ingest links not yet taken by Dart. */
     private val pendingShares = ArrayList<Map<String, Any?>>()
     private var shareChannel: MethodChannel? = null
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -48,7 +48,7 @@ class MainActivity : FlutterFragmentActivity() {
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
-        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "pckt/security").setMethodCallHandler { call, result ->
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "kankoo/security").setMethodCallHandler { call, result ->
             when (call.method) {
                 // FLAG_SECURE: blank thumbnail in Recents, no screenshots.
                 "setSecure" -> {
@@ -58,7 +58,7 @@ class MainActivity : FlutterFragmentActivity() {
                 else -> result.notImplemented()
             }
         }
-        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "pckt/sms").setMethodCallHandler { call, result ->
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "kankoo/sms").setMethodCallHandler { call, result ->
             when (call.method) {
                 "hasPermission" -> result.success(hasSmsPermission())
                 // RECEIVE_SMS powers real-time alerts; it is in the same group as
@@ -93,7 +93,7 @@ class MainActivity : FlutterFragmentActivity() {
                 else -> result.notImplemented()
             }
         }
-        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "pckt/device").setMethodCallHandler { call, result ->
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "kankoo/device").setMethodCallHandler { call, result ->
             when (call.method) {
                 "profile" -> result.success(deviceProfile())
                 // True on mobile data or a metered hotspot: big downloads ask first.
@@ -122,7 +122,7 @@ class MainActivity : FlutterFragmentActivity() {
                 else -> result.notImplemented()
             }
         }
-        shareChannel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "pckt/share").apply {
+        shareChannel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "kankoo/share").apply {
             setMethodCallHandler { call, result ->
                 when (call.method) {
                     "takePending" -> {
@@ -143,7 +143,7 @@ class MainActivity : FlutterFragmentActivity() {
     }
 
     /**
-     * ACTION_SEND text/plain (share sheet) or pckt://ingest?text=…&sender=…
+     * ACTION_SEND text/plain (share sheet) or kankoo://ingest?text=…&sender=…
      * (deep link). Queued until Dart asks; returns true if one was captured.
      */
     private fun captureShare(intent: Intent?): Boolean {
@@ -153,7 +153,7 @@ class MainActivity : FlutterFragmentActivity() {
                 val text = intent.getCharSequenceExtra(Intent.EXTRA_TEXT)?.toString()
                 text?.let { mapOf("text" to it, "sender" to null, "via" to "share") }
             }
-            intent.action == Intent.ACTION_VIEW && intent.data?.scheme == "pckt" && intent.data?.host == "ingest" -> {
+            intent.action == Intent.ACTION_VIEW && intent.data?.scheme == "kankoo" && intent.data?.host == "ingest" -> {
                 val data = intent.data!!
                 data.getQueryParameter("text")?.let {
                     mapOf("text" to it, "sender" to data.getQueryParameter("sender"), "via" to "link")
@@ -248,8 +248,8 @@ class MainActivity : FlutterFragmentActivity() {
     companion object {
         private const val SMS_REQUEST = 4201
         private const val NOTIFY_REQUEST = 4202
-        const val EXTRA_FROM_ALERT = "com.pckt.pckt.FROM_ALERT"
-        private const val EXTRA_HANDLED = "com.pckt.pckt.SHARE_HANDLED"
+        const val EXTRA_FROM_ALERT = "com.kankoo.kankoo.FROM_ALERT"
+        private const val EXTRA_HANDLED = "com.kankoo.kankoo.SHARE_HANDLED"
         // Must match SecurityPrefKeys.hideInRecents on the Dart side.
         private const val HIDE_IN_RECENTS_PREF = "security.hideInRecents"
     }

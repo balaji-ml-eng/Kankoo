@@ -1,7 +1,7 @@
 import 'package:flutter_edge_ai/flutter_edge_ai.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:pckt/llm/on_device/device_profile.dart';
-import 'package:pckt/llm/on_device/model_catalog.dart';
+import 'package:kankoo/llm/on_device/device_profile.dart';
+import 'package:kankoo/llm/on_device/model_catalog.dart';
 
 const _gb = 1024 * 1024 * 1024;
 

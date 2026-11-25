@@ -3,10 +3,10 @@ import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
-import 'package:pckt/llm/llm_client.dart';
-import 'package:pckt/llm/providers/anthropic_client.dart';
-import 'package:pckt/llm/providers/gemini_client.dart';
-import 'package:pckt/llm/providers/openai_client.dart';
+import 'package:kankoo/llm/llm_client.dart';
+import 'package:kankoo/llm/providers/anthropic_client.dart';
+import 'package:kankoo/llm/providers/gemini_client.dart';
+import 'package:kankoo/llm/providers/openai_client.dart';
 
 const _tool = LlmTool(
   name: 'spending_summary',

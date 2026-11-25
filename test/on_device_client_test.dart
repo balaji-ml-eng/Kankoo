@@ -2,10 +2,10 @@ import 'dart:convert';
 
 import 'package:flutter_edge_ai/flutter_edge_ai.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:pckt/llm/llm_client.dart';
-import 'package:pckt/llm/llm_config.dart';
-import 'package:pckt/llm/on_device/model_catalog.dart';
-import 'package:pckt/llm/on_device/on_device_client.dart';
+import 'package:kankoo/llm/llm_client.dart';
+import 'package:kankoo/llm/llm_config.dart';
+import 'package:kankoo/llm/on_device/model_catalog.dart';
+import 'package:kankoo/llm/on_device/on_device_client.dart';
 import 'package:http/http.dart' as http;
 
 void main() {

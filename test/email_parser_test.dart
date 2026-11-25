@@ -1,8 +1,8 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:pckt/data/db/tables.dart';
-import 'package:pckt/ingestion/email/email_source.dart';
-import 'package:pckt/ingestion/parser/email_parser.dart';
-import 'package:pckt/ingestion/parser/parsed_txn.dart';
+import 'package:kankoo/data/db/tables.dart';
+import 'package:kankoo/ingestion/email/email_source.dart';
+import 'package:kankoo/ingestion/parser/email_parser.dart';
+import 'package:kankoo/ingestion/parser/parsed_txn.dart';
 
 final received = DateTime(2026, 10, 12, 20, 30);
 

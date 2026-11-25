@@ -3,12 +3,12 @@ import 'dart:io';
 import 'package:drift/drift.dart' hide isNull, isNotNull;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:pckt/data/db/database.dart';
-import 'package:pckt/features/budgets/budget_math.dart';
-import 'package:pckt/features/recurring/recurring_detector.dart';
-import 'package:pckt/ingestion/categorizer.dart';
-import 'package:pckt/ingestion/parser/parsed_txn.dart';
-import 'package:pckt/ui/amount_field.dart';
+import 'package:kankoo/data/db/database.dart';
+import 'package:kankoo/features/budgets/budget_math.dart';
+import 'package:kankoo/features/recurring/recurring_detector.dart';
+import 'package:kankoo/ingestion/categorizer.dart';
+import 'package:kankoo/ingestion/parser/parsed_txn.dart';
+import 'package:kankoo/ui/amount_field.dart';
 
 var _id = 0;
 
@@ -352,7 +352,7 @@ void main() {
   });
 
   test('v2 → v3 migration adds budgets and backfills seed names', () async {
-    final dir = await Directory.systemTemp.createTemp('pckt_mig');
+    final dir = await Directory.systemTemp.createTemp('kankoo_mig');
     final file = File('${dir.path}/db.sqlite');
     try {
       // Build a fresh DB, then strip it back to the v2 shape.

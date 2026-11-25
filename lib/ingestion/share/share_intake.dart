@@ -13,8 +13,8 @@ import '../ingestion_service.dart';
 import '../parser/parsed_txn.dart';
 import '../parser/senders.dart';
 
-/// Text handed to Pckt from outside: the Android share sheet, or a
-/// `pckt://ingest?text=…&sender=…` link (e.g. from an iOS Shortcuts
+/// Text handed to Kankoo from outside: the Android share sheet, or a
+/// `kankoo://ingest?text=…&sender=…` link (e.g. from an iOS Shortcuts
 /// automation).
 class SharedText {
   const SharedText({required this.text, this.sender, this.via = 'share'});
@@ -25,9 +25,9 @@ class SharedText {
   /// "share" or "link" — informational only.
   final String via;
 
-  /// Parses `pckt://ingest?text=…&sender=…`; null for any other URI.
+  /// Parses `kankoo://ingest?text=…&sender=…`; null for any other URI.
   static SharedText? fromUri(Uri uri) {
-    if (uri.scheme != 'pckt' || uri.host != 'ingest') return null;
+    if (uri.scheme != 'kankoo' || uri.host != 'ingest') return null;
     final text = uri.queryParameters['text']?.trim();
     if (text == null || text.isEmpty) return null;
     final sender = uri.queryParameters['sender']?.trim();
@@ -85,15 +85,15 @@ Future<ShareOutcome> ingestShared(IngestionService svc, SharedText shared, {Date
 
 /// Collects shared texts from the platform before the UI is ready.
 ///
-/// * Android: MainActivity queues ACTION_SEND / pckt://ingest intents and
-///   pings `pckt/share` → `pending`; we pull them with `takePending`.
-/// * iOS: Flutter's deep linking delivers pckt:// URLs as route pushes, which
+/// * Android: MainActivity queues ACTION_SEND / kankoo://ingest intents and
+///   pings `kankoo/share` → `pending`; we pull them with `takePending`.
+/// * iOS: Flutter's deep linking delivers kankoo:// URLs as route pushes, which
 ///   this observer claims before the router sees them.
 class IncomingShares with WidgetsBindingObserver {
   IncomingShares._();
   static final instance = IncomingShares._();
 
-  static const _channel = MethodChannel('pckt/share');
+  static const _channel = MethodChannel('kankoo/share');
 
   final _queue = <SharedText>[];
   final _controller = StreamController<void>.broadcast();

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:pckt/features/assistant/chat_markdown.dart';
+import 'package:kankoo/features/assistant/chat_markdown.dart';
 
 void main() {
   test('inline bold, italic and code become styled spans', () {

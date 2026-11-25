@@ -1,9 +1,9 @@
 import 'package:drift/drift.dart' hide isNull, isNotNull;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:pckt/data/db/database.dart';
-import 'package:pckt/ingestion/ingestion_service.dart';
-import 'package:pckt/ingestion/parser/parsed_txn.dart';
+import 'package:kankoo/data/db/database.dart';
+import 'package:kankoo/ingestion/ingestion_service.dart';
+import 'package:kankoo/ingestion/parser/parsed_txn.dart';
 
 void main() {
   late AppDatabase db;

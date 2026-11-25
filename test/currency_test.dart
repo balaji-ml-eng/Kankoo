@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:pckt/core/format.dart';
-import 'package:pckt/ui/amount_field.dart';
+import 'package:kankoo/core/format.dart';
+import 'package:kankoo/ui/amount_field.dart';
 
 void main() {
   tearDown(() => Currencies.home = 'INR');

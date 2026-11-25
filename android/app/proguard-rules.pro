@@ -18,7 +18,7 @@
 -dontwarn javax.annotation.**
 
 # Our MethodChannel handlers (SMS, device profile, FLAG_SECURE).
--keep class com.pckt.pckt.** { *; }
+-keep class com.kankoo.kankoo.** { *; }
 
 # SQLCipher, SQLite and LiteRT-LM are native libraries loaded through Dart FFI
 # (no JNI classes to keep); enough_mail and drift are pure Dart.

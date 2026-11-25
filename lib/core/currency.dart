@@ -2,7 +2,7 @@ import 'dart:math' as math;
 
 import 'package:intl/intl.dart';
 
-/// A currency Pckt can track. Symbols and decimal digits come from `intl`
+/// A currency Kankoo can track. Symbols and decimal digits come from `intl`
 /// (CLDR data); only the English name is ours.
 class Currency {
   const Currency(this.code, this.name);

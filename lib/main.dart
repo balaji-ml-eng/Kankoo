@@ -20,7 +20,7 @@ Future<void> main() async {
   SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
   final prefs = await SharedPreferences.getInstance();
   await _initOnDeviceAi();
-  runApp(ProviderScope(overrides: [prefsProvider.overrideWithValue(prefs)], child: const PcktApp()));
+  runApp(ProviderScope(overrides: [prefsProvider.overrideWithValue(prefs)], child: const KankooApp()));
 }
 
 /// Registers the LiteRT-LM engine for on-device Gemma. A failure only

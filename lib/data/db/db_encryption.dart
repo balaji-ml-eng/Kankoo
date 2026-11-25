@@ -24,10 +24,10 @@ import '../../core/secrets.dart';
 ///   deleted. Any failure keeps the app on the plaintext file (and it tries
 ///   again on the next start).
 ///
-/// Every step logs with the `[pckt-db]` tag (logcat: `flutter` tag).
+/// Every step logs with the `[kankoo-db]` tag (logcat: `flutter` tag).
 abstract final class DbEncryption {
   static const secretKey = 'db.key.v1';
-  static const fileName = 'pckt.sqlite';
+  static const fileName = 'kankoo.sqlite';
 
   /// What the last open decided, for Settings.
   static final status = ValueNotifier<DbSecurityStatus>(const DbSecurityStatus.unknown());
@@ -42,7 +42,7 @@ class DbSecurityStatus {
   final String? cipherVersion;
 }
 
-void dbLog(String message) => debugPrint('[pckt-db] $message');
+void dbLog(String message) => debugPrint('[kankoo-db] $message');
 
 // ------------------------------------------------------------------ keys
 
@@ -397,7 +397,7 @@ Future<DbOpenPlan> prepareDatabase(String path, SecretStore secrets, {BlockingRu
   }
 }
 
-/// The app's database connection: `pckt.sqlite` in the documents directory
+/// The app's database connection: `kankoo.sqlite` in the documents directory
 /// (same file drift_flutter used), opened with the SQLCipher key on a
 /// background isolate.
 DatabaseConnection openAppDatabase({SecretStore? secrets, Future<String> Function()? directory}) {

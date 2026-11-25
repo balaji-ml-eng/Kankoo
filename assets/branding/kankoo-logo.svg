@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 660 240" width="660" height="240" role="img" aria-label="Kankoo">
+  <defs>
+    <linearGradient id="g" gradientUnits="userSpaceOnUse" x1="40" y1="0" x2="620" y2="0">
+      <stop offset="0" stop-color="#2EE6A6"/>
+      <stop offset="1" stop-color="#4DA8FF"/>
+    </linearGradient>
+  </defs>
+  <rect width="660" height="240" rx="32" fill="#0F172A"/>
+  <g fill="none" stroke="url(#g)" stroke-width="22" stroke-linecap="round" stroke-linejoin="round">
+    <!-- K -->
+    <path d="M40 50V180M92 100L40 142M60 126L94 180"/>
+    <!-- a -->
+    <circle cx="162" cy="140" r="40"/>
+    <path d="M202 100V180"/>
+    <!-- n -->
+    <path d="M240 100V180M240 135A35 35 0 0 1 310 135V180"/>
+    <!-- k -->
+    <path d="M348 50V180M394 100L348 142M366 126L396 180"/>
+    <!-- oo -->
+    <circle cx="470" cy="140" r="40"/>
+    <circle cx="578" cy="140" r="40"/>
+  </g>
+</svg>

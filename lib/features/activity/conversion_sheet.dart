@@ -11,7 +11,7 @@ import '../../ui/widgets.dart';
 
 /// Asks what a foreign transaction came to in the home currency — the
 /// amount from the card statement, or an exchange rate to work it out.
-/// Pckt has no backend and fetches no rates; this is the only way a foreign
+/// Kankoo has no backend and fetches no rates; this is the only way a foreign
 /// amount without a stated equivalent joins the home-currency totals.
 Future<void> showConversionSheet(BuildContext context, Transaction txn) => showModalBottomSheet(
   context: context,
@@ -74,7 +74,7 @@ class _ConversionSheetState extends ConsumerState<_ConversionSheet> {
             const SizedBox(height: 6),
             Text(
               'Enter what your bank charged (it\'s on the statement), or the rate you got. '
-              'Pckt works offline and never looks rates up.',
+              'Kankoo works offline and never looks rates up.',
               style: context.text.bodySmall?.copyWith(color: context.colors.onSurfaceVariant),
             ),
             const SizedBox(height: 12),

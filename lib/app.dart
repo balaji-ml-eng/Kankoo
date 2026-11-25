@@ -80,15 +80,15 @@ class _ProviderListenable extends ChangeNotifier {
   }
 }
 
-class PcktApp extends ConsumerWidget {
-  const PcktApp({super.key});
+class KankooApp extends ConsumerWidget {
+  const KankooApp({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     // Loads the home currency before anything formats an amount.
     ref.watch(homeCurrencyProvider);
     return MaterialApp.router(
-      title: 'Pckt',
+      title: 'Kankoo',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light(),
       darkTheme: AppTheme.dark(),
