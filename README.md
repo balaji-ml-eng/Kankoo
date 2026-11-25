@@ -4,7 +4,7 @@
 
 > **Kankoo** is a modified version of [Pckt](https://github.com/pritam-ravani/pckt) by pritam-ravani,
 > licensed under [GPL-3.0](LICENSE). Modified on 2026-11-25: renamed the app, its package and app ID,
-> added a Kankoo logo to this README, and removed the original's download links, screenshots and promo video.
+> replaced the app icon, added a Kankoo logo to this README, and removed the original's download links, screenshots and promo video.
 
 Kankoo reads the bank, card and UPI alerts already arriving on your phone by SMS and email, turns them
 into transactions, merges the copies, and sorts each one into a category. You don't type anything

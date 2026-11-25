@@ -1,7 +1,7 @@
 // Run: node tool/gen_brand_assets.js
 //
-// One geometry for the Kankoo mark — a "P" whose bowl is a pocket holding a
-// mint coin — written out as
+// One geometry for the Kankoo mark — a "K" with a mint coin
+// between its arms — written out as
 //   * SVG sources in assets/branding/ (the reference artwork),
 //   * Android vector drawables (adaptive foreground, monochrome themed-icon
 //     layer, notification small icon) and a gradient background drawable,
@@ -34,26 +34,26 @@ const C = {
 // centred circle of diameter 66/108 (r = 0.3056); every point of the mark
 // stays inside r ≈ 0.28.
 const G = {
-  stemX: 0.383, top: 0.305, bottom: 0.705, bowlBottom: 0.535,
-  bowlCx: 0.497, bowlR: 0.115, stroke: 0.082, coinR: 0.043,
+  stemX: 0.400, top: 0.305, bottom: 0.695, stroke: 0.082,
+  armX: 0.595, armY: 0.315, joinY: 0.520,
+  legX: 0.472, legY: 0.447, footX: 0.603, footY: 0.690,
+  coinX: 0.605, coinY: 0.480, coinR: 0.038,
 };
-G.cy = (G.top + G.bowlBottom) / 2;
 
 function segDist(px, py, ax, ay, bx, by) {
   const dx = bx - ax, dy = by - ay;
   const t = Math.max(0, Math.min(1, ((px - ax) * dx + (py - ay) * dy) / (dx * dx + dy * dy)));
   return Math.hypot(px - (ax + t * dx), py - (ay + t * dy));
 }
-function pDist(x, y) {
-  let d = Math.min(
+function markDist(x, y) {
+  const d = Math.min(
     segDist(x, y, G.stemX, G.top, G.stemX, G.bottom),
-    segDist(x, y, G.stemX, G.top, G.bowlCx, G.top),
-    segDist(x, y, G.stemX, G.bowlBottom, G.bowlCx, G.bowlBottom),
+    segDist(x, y, G.armX, G.armY, G.stemX, G.joinY),
+    segDist(x, y, G.legX, G.legY, G.footX, G.footY),
   );
-  if (x >= G.bowlCx) d = Math.min(d, Math.abs(Math.hypot(x - G.bowlCx, y - G.cy) - G.bowlR));
   return d - G.stroke / 2;
 }
-const coinDist = (x, y) => Math.hypot(x - G.bowlCx, y - G.cy) - G.coinR;
+const coinDist = (x, y) => Math.hypot(x - G.coinX, y - G.coinY) - G.coinR;
 function roundRectDist(x, y, r) {
   const qx = Math.abs(x - 0.5) - (0.5 - r), qy = Math.abs(y - 0.5) - (0.5 - r);
   return Math.hypot(Math.max(qx, 0), Math.max(qy, 0)) + Math.min(Math.max(qx, qy), 0) - r;
@@ -64,7 +64,7 @@ const squircleDist = (x, y) => (Math.pow(Math.abs(x - 0.5) / 0.5, 4) + Math.pow(
 // ---------------------------------------------------------------- SVG
 function markPath(s = 1, ox = 0, oy = 0) {
   const X = (v) => +(ox + v * s).toFixed(3), Y = (v) => +(oy + v * s).toFixed(3);
-  return `M${X(G.stemX)} ${Y(G.bottom)}V${Y(G.top)}H${X(G.bowlCx)}A${+(G.bowlR * s).toFixed(3)} ${+(G.bowlR * s).toFixed(3)} 0 0 1 ${X(G.bowlCx)} ${Y(G.bowlBottom)}H${X(G.stemX)}`;
+  return `M${X(G.stemX)} ${Y(G.bottom)}V${Y(G.top)}M${X(G.armX)} ${Y(G.armY)}L${X(G.stemX)} ${Y(G.joinY)}M${X(G.legX)} ${Y(G.legY)}L${X(G.footX)} ${Y(G.footY)}`;
 }
 function svgIcon({ bg = true, mark = C.markLight, markGradient = null, coin = C.mint, size = 1024 } = {}) {
   const s = size;
@@ -76,7 +76,7 @@ function svgIcon({ bg = true, mark = C.markLight, markGradient = null, coin = C.
   <defs>${defs}</defs>
   ${bg ? `<rect width="${s}" height="${s}" fill="url(#bg)"/>` : ''}
   <path d="${markPath(s)}" fill="none" stroke="${markGradient ? 'url(#mark)' : mark}" stroke-width="${(G.stroke * s).toFixed(2)}" stroke-linecap="round" stroke-linejoin="round"/>
-  <circle cx="${(G.bowlCx * s).toFixed(2)}" cy="${(G.cy * s).toFixed(2)}" r="${(G.coinR * s).toFixed(2)}" fill="${coin}"/>
+  <circle cx="${(G.coinX * s).toFixed(2)}" cy="${(G.coinY * s).toFixed(2)}" r="${(G.coinR * s).toFixed(2)}" fill="${coin}"/>
 </svg>
 `;
 }
@@ -100,7 +100,7 @@ function vectorDrawable(dp, viewport, color, { scale = 1, comment = '' } = {}) {
         android:strokeLineJoin="round" />
     <path
         android:fillColor="${color}"
-        android:pathData="M${(o + G.bowlCx * s - G.coinR * s).toFixed(3)} ${(o + G.cy * s).toFixed(3)}a${(G.coinR * s).toFixed(3)} ${(G.coinR * s).toFixed(3)} 0 1 0 ${(2 * G.coinR * s).toFixed(3)} 0a${(G.coinR * s).toFixed(3)} ${(G.coinR * s).toFixed(3)} 0 1 0 ${(-2 * G.coinR * s).toFixed(3)} 0z" />
+        android:pathData="M${(o + G.coinX * s - G.coinR * s).toFixed(3)} ${(o + G.coinY * s).toFixed(3)}a${(G.coinR * s).toFixed(3)} ${(G.coinR * s).toFixed(3)} 0 1 0 ${(2 * G.coinR * s).toFixed(3)} 0a${(G.coinR * s).toFixed(3)} ${(G.coinR * s).toFixed(3)} 0 1 0 ${(-2 * G.coinR * s).toFixed(3)} 0z" />
 </vector>
 `;
 }
@@ -148,7 +148,7 @@ function render(size, o = {}) {
           const markCol = o.mark === 'violet'
             ? mix(hex(C.darkA), hex(C.darkB), Math.max(0, Math.min(1, (my - G.top) / (G.bottom - G.top))))
             : Array.isArray(o.mark) ? o.mark : hex(C.markLight);
-          over(markCol, cover(pDist(mx, my) * scale, px / 1.2));
+          over(markCol, cover(markDist(mx, my) * scale, px / 1.2));
           over(o.coin ?? hex(C.mint), cover(coinDist(mx, my) * scale, px / 1.2));
           acc = [acc[0] + rgb[0] * a, acc[1] + rgb[1] * a, acc[2] + rgb[2] * a, acc[3] + a];
         }

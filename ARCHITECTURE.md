@@ -225,7 +225,7 @@ so export it first).
 
 ### Icon and splash
 
-The mark — a white "P" whose bowl is a pocket holding a mint coin, on the violet brand gradient — is
+The mark — a white "K" with a mint coin, on the violet brand gradient — is
 defined once in `tool/gen_brand_assets.js` (`node tool/gen_brand_assets.js`, no npm packages), which
 writes the SVG sources in `assets/branding/`, the Android adaptive icon (vector foreground, gradient
 background, `<monochrome>` layer for Android 13+ themed icons), the notification small icon
