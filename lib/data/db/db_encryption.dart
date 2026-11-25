@@ -21,8 +21,8 @@ import '../../core/secrets.dart';
 /// * A plaintext database from an older install is converted once:
 ///   `sqlcipher_export` into a sibling file, row counts verified, files
 ///   swapped by rename, verified again, and only then is the plaintext copy
-///   deleted. Any failure keeps the app on the plaintext file (and it tries
-///   again on the next start).
+///   deleted. Any failure preserves the original file and blocks opening
+///   until encryption succeeds.
 ///
 /// Every step logs with the `[kankoo-db]` tag (logcat: `flutter` tag).
 abstract final class DbEncryption {
@@ -293,7 +293,7 @@ MigrationResult migratePlaintextDb(String path, String hexKey) {
 class DbOpenPlan {
   const DbOpenPlan(this.path, this.key, this.status);
   final String path;
-  final String? key;
+  final String key;
   final DbSecurityStatus status;
 }
 
@@ -311,8 +311,7 @@ MigrationResult Function() _migrateTask(String path, String key) =>
     () => migratePlaintextDb(path, key);
 
 /// Decides how to open [path]: creates / validates the key and migrates a
-/// plaintext file. Never throws for encryption problems — the worst case is
-/// the plaintext database with a log line.
+/// plaintext file. Fail closed without replacing an unreadable database/key.
 Future<DbOpenPlan> prepareDatabase(String path, SecretStore secrets, {BlockingRunner run = _isolateRunner}) async {
   recoverInterruptedSwap(path);
   final cipher = await run(cipherVersion);
@@ -320,32 +319,19 @@ Future<DbOpenPlan> prepareDatabase(String path, SecretStore secrets, {BlockingRu
   dbLog('open: $kind file, SQLCipher ${cipher ?? 'NOT linked'}');
 
   if (cipher == null) {
-    if (kind == DbFileKind.encrypted) {
-      // Should never happen (the build always links SQLCipher), and there is
-      // no way to read the file without it.
-      throw StateError('Database is encrypted but SQLCipher is not available');
-    }
-    return DbOpenPlan(path, null, const DbSecurityStatus(encrypted: false, detail: 'SQLCipher is not available'));
+    throw StateError('SQLCipher is unavailable. Your database has not been opened. Please restart Kankoo.');
   }
 
-  String? key;
-  try {
-    key = await obtainDbKey(secrets, create: kind != DbFileKind.encrypted);
-  } catch (e) {
-    dbLog('key unavailable: $e');
-  }
+  final key = await obtainDbKey(secrets, create: kind != DbFileKind.encrypted);
 
   switch (kind) {
     case DbFileKind.missing:
-      if (key == null) {
-        return DbOpenPlan(path, null, const DbSecurityStatus(encrypted: false, detail: 'Keystore unavailable'));
-      }
       _deleteQuietly(_tmpPath(path));
       dbLog('open: new encrypted database');
       return DbOpenPlan(path, key, DbSecurityStatus(encrypted: true, detail: 'Encrypted', cipherVersion: cipher));
 
     case DbFileKind.encrypted:
-      if (key != null && await run(_canOpenTask(path, key))) {
+      if (await run(_canOpenTask(path, key))) {
         _deleteQuietly(_tmpPath(path));
         if (File(_backupPath(path)).existsSync()) {
           dbLog('open: removing plaintext backup from an earlier verified migration');
@@ -353,41 +339,13 @@ Future<DbOpenPlan> prepareDatabase(String path, SecretStore secrets, {BlockingRu
         }
         return DbOpenPlan(path, key, DbSecurityStatus(encrypted: true, detail: 'Encrypted', cipherVersion: cipher));
       }
-      // The keystore lost the key (e.g. data restored onto a new phone).
-      // The file can't be read; keep it aside rather than deleting it, and
-      // start a fresh encrypted database.
-      final aside = '$path.unreadable-${DateTime.now().millisecondsSinceEpoch}';
-      dbLog(
-        'open: ERROR encrypted database does not open with the stored key (key ${key == null ? 'missing' : 'present'}); moved to $aside',
-      );
-      File(path).renameSync(aside);
-      for (final s in const ['-journal', '-wal', '-shm']) {
-        if (File('$path$s').existsSync()) File('$path$s').renameSync('$aside$s');
-      }
-      await secrets.delete(DbEncryption.secretKey);
-      final fresh = await obtainDbKey(secrets);
-      return DbOpenPlan(
-        path,
-        fresh,
-        DbSecurityStatus(
-          encrypted: true,
-          detail: 'Encrypted · the previous database could not be unlocked and was set aside',
-          cipherVersion: cipher,
-        ),
-      );
+      throw StateError('Could not unlock the database. Its file and key have been preserved. Please retry.');
 
     case DbFileKind.plaintext:
-      if (key == null) {
-        return DbOpenPlan(path, null, const DbSecurityStatus(encrypted: false, detail: 'Keystore unavailable'));
-      }
       final k = key;
       final result = await run(_migrateTask(path, k));
       if (!result.ok) {
-        return DbOpenPlan(
-          path,
-          null,
-          DbSecurityStatus(encrypted: false, detail: 'Not encrypted yet — will retry (${result.error})'),
-        );
+        throw StateError('Database encryption failed. Your original data is preserved. Please retry.');
       }
       return DbOpenPlan(
         path,
@@ -410,20 +368,25 @@ DatabaseConnection openAppDatabase({SecretStore? secrets, Future<String> Functio
       } catch (_) {}
       final path = p.join(dir, DbEncryption.fileName);
       final sw = Stopwatch()..start();
-      final plan = await prepareDatabase(path, secrets ?? SecretStore());
+      final DbOpenPlan plan;
+      try {
+        plan = await prepareDatabase(path, secrets ?? SecretStore());
+      } catch (_) {
+        DbEncryption.status.value = const DbSecurityStatus(
+          encrypted: false,
+          detail: 'Database unavailable. Data and keys are preserved; restart to retry.',
+        );
+        rethrow;
+      }
       DbEncryption.status.value = plan.status;
-      dbLog(
-        'open: ${plan.key == null ? 'PLAINTEXT' : 'encrypted'} — ${plan.status.detail} (${sw.elapsedMilliseconds} ms)',
-      );
+      dbLog('open: encrypted — ${plan.status.detail} (${sw.elapsedMilliseconds} ms)');
       final key = plan.key;
       return NativeDatabase.createBackgroundConnection(
         File(path),
-        setup: key == null
-            ? null
-            : (db) {
-                db.execute('PRAGMA key = ${rawKeyLiteral(key)}');
-                db.select('SELECT count(*) FROM sqlite_master');
-              },
+        setup: (db) {
+          db.execute('PRAGMA key = ${rawKeyLiteral(key)}');
+          db.select('SELECT count(*) FROM sqlite_master');
+        },
       );
     }),
   );

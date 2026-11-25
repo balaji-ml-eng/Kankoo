@@ -355,16 +355,6 @@ class AppDatabase extends _$AppDatabase {
     return id;
   });
 
-  /// Drops everything that came from [source] so it can be re-parsed.
-  /// Transactions also backed by another source (manual, email) survive.
-  Future<void> resetSource(SourceKind source) => transaction(() async {
-    await (delete(rawMessages)..where((m) => m.source.equalsValue(source))).go();
-    await customStatement(
-      'DELETE FROM transactions WHERE id NOT IN '
-      '(SELECT transaction_id FROM raw_messages WHERE transaction_id IS NOT NULL)',
-    );
-  });
-
   // ------------------------------------------------------------- editing
 
   /// Edits the user-facing fields of a transaction. Source evidence

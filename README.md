@@ -5,6 +5,8 @@
 > **Kankoo** is a modified version of [Pckt](https://github.com/pritam-ravani/pckt) by pritam-ravani,
 > licensed under [GPL-3.0](LICENSE). Modified on 2026-11-25: renamed the app, its package and app ID,
 > replaced the app icon, added a Kankoo logo to this README, and removed the original's download links, screenshots and promo video.
+> Also modified on 2026-11-25: fixed the SMS onboarding flow, authentication and encryption failure handling,
+> data preservation, imports, backups, transfer detection, Activity history, AI validation and release signing.
 
 Kankoo reads the bank, card and UPI alerts already arriving on your phone by SMS and email, turns them
 into transactions, merges the copies, and sorts each one into a category. You don't type anything
@@ -77,20 +79,28 @@ the device and has nothing to sell you.
 
 ## Install (test build)
 
-> **Warning: for testing only.** Kankoo has known security gaps that are not fixed yet. Use made-up
-> transactions, preferably on a spare phone. Do not allow SMS access, and do not connect email or AI.
+> **Pre-release: for testing only.** Use made-up transactions on a spare phone. Test SMS permissions
+> with sample messages, and avoid connecting personal email or cloud AI accounts during initial testing.
+> Real-device import, app-lock and update testing is still pending.
 
 You need Android 11 or newer on a 64-bit ARM phone. There is no finished release yet.
 
-**[⬇ Download the Kankoo test APK](https://github.com/balaji-ml-eng/Kankoo/releases/download/test-build/kankoo-test.apk)**
+**[⬇ Download Kankoo 1.0.2 (build 4)](https://github.com/balaji-ml-eng/Kankoo/releases/download/v1.0.2-test/kankoo-1.0.2-arm64.apk)**
 (no GitHub sign-in needed)
+
+This is a signed, non-debuggable release-mode APK. All **282 automated tests** pass. It fixes the
+landing-page SMS permission flow and the reviewed data-preservation, encryption and import issues.
+
+**Updating from the old debug build:** export any data you need first. This APK uses a new persistent
+release signing key and cannot install over the old debug-signed app. Removing the old app deletes its
+data; restore your exported backup after installing this build. Future releases will keep this key.
 
 1. Download the APK on your Android phone.
 2. Open it. If asked, allow your browser or file app to install unknown apps, and turn that
    permission off afterwards.
 3. Tap **Install**.
 
-A later test build may not install over this one. Uninstalling the app deletes its saved data.
+Uninstalling the app deletes its saved data. Keep a backup before changing installations.
 
 ### Test checklist
 
@@ -99,6 +109,8 @@ A later test build may not install over this one. Uninstalling the app deletes i
 - [ ] You can add, edit and delete a made-up transaction.
 - [ ] Transactions remain after closing and reopening the app.
 - [ ] Text and buttons are easy to read and use.
+- [ ] The SMS button and Skip remain reachable with large text on a small screen.
+- [ ] Denying SMS shows retry/settings guidance; allowing SMS completes import successfully.
 
 ## Setup guides
 

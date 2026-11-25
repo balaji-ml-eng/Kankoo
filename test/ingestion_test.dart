@@ -98,7 +98,7 @@ void main() {
       ),
       msg(
         'VM-ICICIB',
-        'Your A/c XX123 has been credited with INR 10,000.00 on 12-Oct-26 by IMPS from ASHA K.',
+        'Your A/c XX123 has been credited with INR 10,000.00 on 12-Oct-26 by IMPS from ASHA K. IMPS Ref 628512345678',
         t0.add(const Duration(minutes: 1)),
       ),
     ]);
@@ -108,15 +108,54 @@ void main() {
     expect(await db.select(db.accounts).get(), hasLength(2));
   });
 
-  test('resetSource drops SMS-only transactions but keeps manual ones', () async {
+  test('reparsing preserves edited transactions and deletion tombstones', () async {
+    final deleted = msg('VM-HDFCBK', 'Sent Rs.50.00 From HDFC Bank A/C *4521 To CAFE On 12/10/26 Ref 528512345679', t0);
     await svc.ingest([
       msg('VM-HDFCBK', 'Sent Rs.250.00 From HDFC Bank A/C *4521 To SWIGGY On 12/10/26 Ref 528512345678', t0),
+      deleted,
     ]);
+    final imported = await db.select(db.transactions).get();
+    final kept = imported.first;
+    await db.setNote(kept.id, 'Keep my correction');
+    await db.setConversion(kept.id, minor: 123, currency: 'USD');
+    await db.setCategory(kept.id, (await db.allCategories()).first.id);
+    await db.deleteTxn(imported.last.id);
     await db.addManual(amountMinor: 5000, direction: TxnDirection.debit, at: t0, merchant: 'Chai');
-    await db.resetSource(SourceKind.sms);
+    await svc.reparseSkipped(source: SourceKind.sms, all: true);
+    await svc.ingest([deleted]);
     final left = await db.select(db.transactions).get();
-    expect(left.map((t) => t.merchant), ['Chai']);
-    expect(await db.knownExternalIds(SourceKind.sms), isEmpty);
+    expect(left, hasLength(2));
+    final edited = left.firstWhere((t) => t.id == kept.id);
+    expect(edited.note, 'Keep my correction');
+    expect(edited.convertedMinor, 123);
+    expect(edited.categoryLocked, isTrue);
+    expect(await db.knownExternalIds(SourceKind.sms), hasLength(2));
+  });
+
+  test('equal unrelated debit and credit do not disappear from totals', () async {
+    await svc.ingest([
+      msg('VM-HDFCBK', 'Rs.500.00 debited from A/c **4521 on 12-10-26 via IMPS to STORE. IMPS Ref 628512345678', t0),
+      msg(
+        'VM-ICICIB',
+        'Your A/c XX123 has been credited with INR 500.00 on 12-Oct-26 by IMPS from REFUND. IMPS Ref 628512345679',
+        t0.add(const Duration(minutes: 1)),
+      ),
+    ]);
+    final txns = await db.select(db.transactions).get();
+    expect(txns, hasLength(2));
+    expect(txns.every((t) => !t.isTransfer), isTrue);
+  });
+
+  test('equal payments without bank references are not auto-transfers', () async {
+    await svc.ingest([
+      msg('VM-HDFCBK', 'Rs.500.00 debited from A/c **4521 on 12-10-26 via IMPS to STORE.', t0),
+      msg(
+        'VM-ICICIB',
+        'Your A/c XX123 has been credited with INR 500.00 on 12-Oct-26 by IMPS from REFUND.',
+        t0.add(const Duration(minutes: 1)),
+      ),
+    ]);
+    expect((await db.select(db.transactions).get()).every((t) => !t.isTransfer), isTrue);
   });
 
   test('ignored and categorised', () async {

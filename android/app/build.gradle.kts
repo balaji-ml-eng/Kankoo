@@ -7,13 +7,21 @@ plugins {
     id("dev.flutter.flutter-gradle-plugin")
 }
 
-// Release signing: android/key.properties (gitignored; see README). Without
-// it, release builds are signed with the debug key so sideloading still works.
+// Release signing is required for release tasks. Debug builds stay available.
 val keystorePropertiesFile = rootProject.file("key.properties")
 val keystoreProperties = Properties().apply {
     if (keystorePropertiesFile.exists()) FileInputStream(keystorePropertiesFile).use { load(it) }
 }
 val hasReleaseKey = keystorePropertiesFile.exists()
+val isReleaseTask = gradle.startParameter.taskNames.any {
+    it.contains("release", ignoreCase = true)
+}
+if (isReleaseTask) {
+    check(hasReleaseKey) { "Release signing requires android/key.properties and a stable private keystore." }
+    for (property in listOf("keyAlias", "keyPassword", "storeFile", "storePassword")) {
+        check(!keystoreProperties.getProperty(property).isNullOrBlank()) { "Missing release signing property: $property" }
+    }
+}
 
 android {
     namespace = "com.kankoo.kankoo"
@@ -56,7 +64,7 @@ android {
 
     buildTypes {
         release {
-            signingConfig = signingConfigs.getByName(if (hasReleaseKey) "release" else "debug")
+            signingConfig = if (hasReleaseKey) signingConfigs.getByName("release") else null
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")

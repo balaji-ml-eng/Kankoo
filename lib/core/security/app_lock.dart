@@ -150,14 +150,9 @@ class AppLockController extends Notifier<AppLockState> {
       case AuthOutcome.success:
         state = state.copyWith(locked: false, authenticating: false);
       case AuthOutcome.unavailable:
-        // The phone's screen lock was removed: a lock we can't open would
-        // only lock the user out of their own data.
-        await ref.read(prefsProvider).setBool(SecurityPrefKeys.appLock, false);
         state = state.copyWith(
-          enabled: false,
-          locked: false,
           authenticating: false,
-          message: 'This phone has no screen lock any more, so Kankoo\'s app lock was turned off.',
+          message: 'Authentication is unavailable. Check your phone\'s screen lock and try again.',
         );
       case AuthOutcome.canceled:
         state = state.copyWith(authenticating: false);

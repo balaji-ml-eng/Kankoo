@@ -27,6 +27,15 @@ class MemorySecretStore extends SecretStore {
   Future<void> delete(String key) async => values.remove(key);
 }
 
+class TemporarilyUnavailableSecrets extends MemorySecretStore {
+  bool unavailable = true;
+  @override
+  Future<String?> read(String key) async {
+    if (unavailable) throw StateError('Keystore temporarily unavailable');
+    return super.read(key);
+  }
+}
+
 Future<T> inline<T>(T Function() work) async => work();
 
 void main() {
@@ -183,22 +192,63 @@ void main() {
       expect(again.status.detail, 'Encrypted');
     });
 
-    test('keystore failure → stays plaintext, nothing touched', () async {
+    test('keystore failure blocks opening and preserves plaintext', () async {
       makePlaintext(messages: 5);
-      final plan = await prepareDatabase(path, MemorySecretStore(dropWrites: true), run: inline);
-      expect(plan.key, isNull);
-      expect(plan.status.encrypted, isFalse);
+      final before = File(path).readAsBytesSync();
+      await expectLater(prepareDatabase(path, MemorySecretStore(dropWrites: true), run: inline), throwsStateError);
+      expect(File(path).readAsBytesSync(), before);
       expect(detectDbFile(path), DbFileKind.plaintext);
     });
 
-    test('encrypted file whose key is gone is set aside, not deleted', () async {
+    test('missing key preserves the encrypted file without resetting it', () async {
       makePlaintext(messages: 5);
       expect(migratePlaintextDb(path, generateDbKey()).ok, isTrue);
       final store = MemorySecretStore();
-      final plan = await prepareDatabase(path, store, run: inline);
-      expect(plan.key, isNotNull);
-      expect(detectDbFile(path), DbFileKind.missing);
-      expect(dir.listSync().where((f) => f.path.contains('.unreadable-')), hasLength(1));
+      final before = File(path).readAsBytesSync();
+      await expectLater(prepareDatabase(path, store, run: inline), throwsStateError);
+      expect(File(path).readAsBytesSync(), before);
+      expect(store.values, isEmpty);
+      expect(dir.listSync().where((f) => f.path.contains('.unreadable-')), isEmpty);
+    });
+
+    test('wrong key is retained and a later correct-key retry recovers data', () async {
+      makePlaintext(messages: 5);
+      final originalKey = generateDbKey();
+      expect(migratePlaintextDb(path, originalKey).ok, isTrue);
+      final wrong = generateDbKey();
+      final store = MemorySecretStore()..values[DbEncryption.secretKey] = wrong;
+      final before = File(path).readAsBytesSync();
+      await expectLater(prepareDatabase(path, store, run: inline), throwsStateError);
+      expect(store.values[DbEncryption.secretKey], wrong);
+      expect(File(path).readAsBytesSync(), before);
+      store.values[DbEncryption.secretKey] = originalKey;
+      expect((await prepareDatabase(path, store, run: inline)).key, originalKey);
+    });
+
+    test('fresh install cannot create a plaintext database if key persistence fails', () async {
+      await expectLater(prepareDatabase(path, MemorySecretStore(dropWrites: true), run: inline), throwsStateError);
+      expect(File(path).existsSync(), isFalse);
+    });
+
+    test('temporary keystore failure preserves the original key and recovers on retry', () async {
+      makePlaintext(messages: 5);
+      final key = generateDbKey();
+      expect(migratePlaintextDb(path, key).ok, isTrue);
+      final store = TemporarilyUnavailableSecrets()..values[DbEncryption.secretKey] = key;
+      final before = File(path).readAsBytesSync();
+      await expectLater(prepareDatabase(path, store, run: inline), throwsStateError);
+      expect(store.values[DbEncryption.secretKey], key);
+      expect(File(path).readAsBytesSync(), before);
+      store.unavailable = false;
+      expect((await prepareDatabase(path, store, run: inline)).key, key);
+    });
+
+    test('failed migration blocks opening without changing the original', () async {
+      makePlaintext(messages: 5);
+      final before = File(path).readAsBytesSync();
+      Directory('$path.enc-tmp').createSync();
+      await expectLater(prepareDatabase(path, MemorySecretStore(), run: inline), throwsStateError);
+      expect(File(path).readAsBytesSync(), before);
     });
   });
 

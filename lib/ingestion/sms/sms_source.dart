@@ -32,14 +32,37 @@ class SmsSource {
   Future<bool> notificationsAllowed() async =>
       isSupported && (await _device.invokeMethod<bool>('notificationsAllowed') ?? false);
 
-  Future<List<RawInput>> readSince(DateTime since, {int limit = 20000}) async {
+  Future<void> openSettings() async {
+    if (isSupported) await _channel.invokeMethod<void>('openSettings');
+  }
+
+  /// Reads every page, including messages sharing the same timestamp.
+  Future<List<RawInput>> readSince(DateTime since, {int limit = 1000}) async {
     if (!isSupported) return const [];
-    final rows = await _channel.invokeListMethod<Map<Object?, Object?>>('readInbox', {
-      'sinceMillis': since.millisecondsSinceEpoch,
-      'limit': limit,
-    });
+    if (limit <= 0) throw ArgumentError.value(limit, 'limit');
+    final rows = <Map<Object?, Object?>>[];
+    var afterMillis = since.millisecondsSinceEpoch;
+    var afterId = -1;
+    while (true) {
+      final page = await _channel.invokeListMethod<Map<Object?, Object?>>('readInbox', {
+        'sinceMillis': afterMillis,
+        'afterId': afterId,
+        'limit': limit,
+      });
+      if (page == null) throw StateError('SMS inbox could not be read. Please retry.');
+      rows.addAll(page);
+      if (page.length < limit) break;
+      final last = page.last;
+      final nextMillis = (last['date']! as num).toInt();
+      final nextId = int.parse(last['id']! as String);
+      if (nextMillis < afterMillis || (nextMillis == afterMillis && nextId <= afterId)) {
+        throw StateError('SMS inbox pagination did not advance. Please retry.');
+      }
+      afterMillis = nextMillis;
+      afterId = nextId;
+    }
     return [
-      for (final r in rows ?? const <Map<Object?, Object?>>[])
+      for (final r in rows)
         RawInput(
           source: SourceKind.sms,
           externalId: r['id']! as String,

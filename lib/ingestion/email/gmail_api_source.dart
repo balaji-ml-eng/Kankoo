@@ -70,9 +70,11 @@ class GoogleGmailAuth {
 
 /// Reads mail through the Gmail REST API (`gmail.readonly`).
 class GmailApiSource implements EmailSource {
-  GmailApiSource({Future<String> Function()? token}) : _token = token ?? GoogleGmailAuth.instance.accessToken;
+  GmailApiSource({Future<String> Function()? token, this.httpClient})
+    : _token = token ?? GoogleGmailAuth.instance.accessToken;
 
   final Future<String> Function() _token;
+  final http.Client? httpClient;
 
   @override
   Future<void> test() async {
@@ -84,6 +86,8 @@ class GmailApiSource implements EmailSource {
   @override
   Future<List<RawInput>> fetchSince(DateTime since, {int limit = defaultEmailFetchLimit}) async {
     final token = await _token();
+    final injected = httpClient;
+    if (injected != null) return _gmailFetch(token, since, limit, httpClient: injected);
     return Isolate.run(() => _gmailFetch(token, since, limit));
   }
 }
@@ -98,20 +102,17 @@ String gmailQuery(DateTime since) {
   return 'after:${d.year}/${d.month}/${d.day} {from:($from) subject:($subj)} -in:chats';
 }
 
-Future<List<RawInput>> _gmailFetch(String token, DateTime since, int limit) async {
-  final client = http.Client();
+Future<List<RawInput>> _gmailFetch(String token, DateTime since, int limit, {http.Client? httpClient}) async {
+  if (limit <= 0) throw ArgumentError.value(limit, 'limit');
+  final client = httpClient ?? http.Client();
   final headers = {'Authorization': 'Bearer $token'};
   try {
     final ids = <String>[];
     String? page;
     do {
-      final uri = Uri.parse('$_base/messages').replace(
-        queryParameters: {
-          'q': gmailQuery(since),
-          'maxResults': '${(limit - ids.length).clamp(1, 500)}',
-          'pageToken': ?page,
-        },
-      );
+      final uri = Uri.parse(
+        '$_base/messages',
+      ).replace(queryParameters: {'q': gmailQuery(since), 'maxResults': '${limit.clamp(1, 500)}', 'pageToken': ?page});
       final r = await client.get(uri, headers: headers);
       if (r.statusCode == 401) throw const EmailConnectException('Google access expired — reconnect Gmail in Settings');
       if (r.statusCode != 200) throw EmailConnectException('Gmail API error ${r.statusCode}');
@@ -120,7 +121,7 @@ Future<List<RawInput>> _gmailFetch(String token, DateTime since, int limit) asyn
         ids.add((m as Map)['id'] as String);
       }
       page = j['nextPageToken'] as String?;
-    } while (page != null && ids.length < limit);
+    } while (page != null);
 
     final out = <RawInput>[];
     // Small parallel batches: quick without tripping per-user rate limits.
@@ -129,14 +130,17 @@ Future<List<RawInput>> _gmailFetch(String token, DateTime since, int limit) asyn
       final results = await Future.wait(
         batch.map((id) async {
           final r = await client.get(Uri.parse('$_base/messages/$id?format=full'), headers: headers);
-          return r.statusCode == 200 ? gmailMessageToInput(jsonDecode(r.body) as Map<String, dynamic>) : null;
+          if (r.statusCode != 200) {
+            throw EmailConnectException('Gmail message download failed (${r.statusCode}). Sync again to retry.');
+          }
+          return gmailMessageToInput(jsonDecode(r.body) as Map<String, dynamic>);
         }),
       );
       out.addAll(results.whereType<RawInput>());
     }
     return out;
   } finally {
-    client.close();
+    if (httpClient == null) client.close();
   }
 }
 

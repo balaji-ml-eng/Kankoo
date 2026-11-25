@@ -209,12 +209,33 @@ void main() {
       mailbox.messages = [swiggyReceipt(DateTime.now().subtract(const Duration(days: 1)))];
       await ctrl.connect(account, password: 'p');
       await ctrl.sync();
+      final original = (await db.select(db.transactions).get()).single;
+      await db.setNote(original.id, 'User correction');
       final prefs = container.read(prefsProvider);
       await prefs.setInt(EmailPrefKeys.parserVersion, emailParserVersion - 1);
       await ctrl.sync();
       expect(await db.select(db.transactions).get(), hasLength(1));
+      final retained = (await db.select(db.transactions).get()).single;
+      expect(retained.id, original.id);
+      expect(retained.note, 'User correction');
       expect(await db.knownExternalIds(SourceKind.email), hasLength(1));
       expect(prefs.getInt(EmailPrefKeys.parserVersion), emailParserVersion);
+    });
+
+    test('failed import on a parser upgrade preserves data and checkpoints', () async {
+      final ctrl = container.read(emailSyncProvider.notifier);
+      mailbox.messages = [swiggyReceipt(DateTime.now().subtract(const Duration(days: 1)))];
+      await ctrl.connect(account, password: 'p');
+      await ctrl.sync();
+      final original = (await db.select(db.transactions).get()).single;
+      final prefs = container.read(prefsProvider);
+      final checkpoint = prefs.getInt(EmailPrefKeys.lastSync);
+      await prefs.setInt(EmailPrefKeys.parserVersion, emailParserVersion - 1);
+      mailbox.failFetch = true;
+      expect(await ctrl.sync(), isNull);
+      expect((await db.select(db.transactions).get()).single.id, original.id);
+      expect(prefs.getInt(EmailPrefKeys.lastSync), checkpoint);
+      expect(prefs.getInt(EmailPrefKeys.parserVersion), emailParserVersion - 1);
     });
 
     test('disconnect forgets the password', () async {
@@ -234,6 +255,7 @@ class _FakeMailbox implements EmailSource {
   final sinces = <DateTime>[];
   EmailConnectException? failWith;
   String? lastPassword;
+  bool failFetch = false;
 
   @override
   Future<void> test() async {
@@ -242,6 +264,7 @@ class _FakeMailbox implements EmailSource {
 
   @override
   Future<List<RawInput>> fetchSince(DateTime since, {int limit = defaultEmailFetchLimit}) async {
+    if (failFetch) throw const EmailConnectException('Download temporarily unavailable');
     sinces.add(since);
     return messages.where((m) => !m.receivedAt.isBefore(since)).toList();
   }

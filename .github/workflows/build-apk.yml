@@ -23,6 +23,7 @@ jobs:
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
+          flutter-version: '3.50.1'
           cache: true
 
       - name: Install packages
@@ -30,6 +31,9 @@ jobs:
 
       - name: Generate database code
         run: dart run build_runner build -d
+
+      - name: Analyze
+        run: flutter analyze --no-fatal-infos
 
       - name: Build debug APK
         shell: bash
@@ -62,25 +66,5 @@ jobs:
       - name: Run tests
         run: flutter test
 
-  # Publishes the APK as a public pre-release, only when asked for: a manual
-  # run, or a commit message containing "[publish apk]".
-  publish:
-    needs: build
-    if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[publish apk]')
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    steps:
-      - uses: actions/download-artifact@v4
-        with:
-          name: kankoo-debug-apk
-
-      - name: Publish test pre-release
-        env:
-          GH_TOKEN: ${{ github.token }}
-          GH_REPO: ${{ github.repository }}
-        run: |
-          mv app-debug.apk kankoo-test.apk
-          # Recreated each time so the tag matches the source of this APK.
-          gh release delete test-build --yes --cleanup-tag || true
-          gh release create test-build kankoo-test.apk --prerelease --target "$GITHUB_SHA"             --title "Kankoo test build"             --notes "For testing only. This debug build has known security gaps that are not fixed. Use made-up data, preferably on a spare phone. Do not allow SMS access, and do not connect email or AI. Needs Android 11+ on a 64-bit ARM phone. Source code: this release's tag. License: GPL-3.0."
+  # Public releases are uploaded from a verified build signed with the persistent
+  # release key. CI debug artifacts must never replace the signed download.

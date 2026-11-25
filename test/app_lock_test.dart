@@ -78,15 +78,15 @@ void main() {
     expect(c.read(appLockProvider).locked, isTrue);
   });
 
-  test('screen lock removed from the phone: the app lock turns itself off', () async {
+  test('unavailable authentication keeps the app locked and enabled', () async {
     final c = await make(enabled: true);
     auth.outcomes.add(AuthOutcome.unavailable);
     await c.read(appLockProvider.notifier).unlock();
     final s = c.read(appLockProvider);
-    expect(s.locked, isFalse);
-    expect(s.enabled, isFalse);
+    expect(s.locked, isTrue);
+    expect(s.enabled, isTrue);
     expect(s.message, isNotNull);
-    expect(c.read(prefsProvider).getBool(SecurityPrefKeys.appLock), isFalse);
+    expect(c.read(prefsProvider).getBool(SecurityPrefKeys.appLock), isTrue);
   });
 
   test('turning on needs a screen lock and one successful unlock', () async {

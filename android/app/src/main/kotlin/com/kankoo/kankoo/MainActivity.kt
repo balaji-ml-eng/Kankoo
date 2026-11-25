@@ -5,6 +5,8 @@ import android.app.ActivityManager
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.ConnectivityManager
+import android.net.Uri
+import android.provider.Settings
 import android.os.BatteryManager
 import android.os.Build
 import android.os.Bundle
@@ -61,6 +63,10 @@ class MainActivity : FlutterFragmentActivity() {
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "kankoo/sms").setMethodCallHandler { call, result ->
             when (call.method) {
                 "hasPermission" -> result.success(hasSmsPermission())
+                "openSettings" -> {
+                    startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:$packageName")))
+                    result.success(null)
+                }
                 // RECEIVE_SMS powers real-time alerts; it is in the same group as
                 // READ_SMS, so once that is granted it's granted without a dialog.
                 "hasReceivePermission" -> result.success(hasReceivePermission())
@@ -79,9 +85,10 @@ class MainActivity : FlutterFragmentActivity() {
                 "readInbox" -> {
                     val since = call.argument<Number>("sinceMillis")?.toLong() ?: 0L
                     val limit = call.argument<Int>("limit") ?: 5000
+                    val afterId = call.argument<Number>("afterId")?.toLong() ?: -1L
                     io.execute {
                         try {
-                            val rows = readInbox(since, limit)
+                            val rows = readInbox(since, afterId, limit)
                             main.post { result.success(rows) }
                         } catch (e: SecurityException) {
                             main.post { result.error("PERMISSION", e.message, null) }
@@ -212,16 +219,18 @@ class MainActivity : FlutterFragmentActivity() {
         }
     }
 
-    /** Inbox messages newer than [since], oldest first. */
-    private fun readInbox(since: Long, limit: Int): List<Map<String, Any?>> {
+    /** One inbox page ordered by timestamp and id, with a stable cursor. */
+    private fun readInbox(since: Long, afterId: Long, limit: Int): List<Map<String, Any?>> {
+        require(limit > 0) { "Page size must be positive" }
         val out = ArrayList<Map<String, Any?>>()
-        contentResolver.query(
+        val cursor = contentResolver.query(
             Telephony.Sms.Inbox.CONTENT_URI,
             arrayOf(Telephony.Sms._ID, Telephony.Sms.ADDRESS, Telephony.Sms.BODY, Telephony.Sms.DATE),
-            "${Telephony.Sms.DATE} > ?",
-            arrayOf(since.toString()),
-            "${Telephony.Sms.DATE} ASC",
-        )?.use { c ->
+            "(${Telephony.Sms.DATE} > ? OR (${Telephony.Sms.DATE} = ? AND ${Telephony.Sms._ID} > ?))",
+            arrayOf(since.toString(), since.toString(), afterId.toString()),
+            "${Telephony.Sms.DATE} ASC, ${Telephony.Sms._ID} ASC",
+        ) ?: error("SMS inbox could not be read")
+        cursor.use { c ->
             val id = c.getColumnIndexOrThrow(Telephony.Sms._ID)
             val addr = c.getColumnIndexOrThrow(Telephony.Sms.ADDRESS)
             val body = c.getColumnIndexOrThrow(Telephony.Sms.BODY)

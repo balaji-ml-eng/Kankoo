@@ -98,6 +98,22 @@ void main() {
   });
 
   group('JSON backup', () {
+    test('backup remains restorable while transactions are being added', () async {
+      for (var i = 0; i < 3; i++) {
+        final results = await Future.wait<Object>([
+          DataExport(db).backupJson(),
+          db.addManual(amountMinor: 10 + i, direction: TxnDirection.debit, at: t0, merchant: 'During backup $i'),
+        ]);
+        final fresh = memoryDb();
+        try {
+          final summary = await DataExport(fresh).restore(results.first as String);
+          expect(await fresh.select(fresh.transactions).get(), hasLength(summary.transactions));
+          expect(await fresh.customSelect('PRAGMA foreign_key_check').get(), isEmpty);
+        } finally {
+          await fresh.close();
+        }
+      }
+    });
     test('round-trips every table exactly into a fresh database', () async {
       final json = await DataExport(db).backupJson();
       final fresh = memoryDb();

@@ -51,7 +51,8 @@ abstract interface class EmailSource {
   /// user-facing message on failure.
   Future<void> test();
 
-  /// Likely-financial messages received on/after [since], newest [limit] at most.
+  /// All likely-financial messages on/after [since]. [limit] is a page size,
+  /// never a cap on imported history. Failure must throw, not return partial data.
   Future<List<RawInput>> fetchSince(DateTime since, {int limit = defaultEmailFetchLimit});
 }
 

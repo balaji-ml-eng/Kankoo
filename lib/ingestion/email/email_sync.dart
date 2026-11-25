@@ -12,7 +12,7 @@ import 'gmail_api_source.dart';
 import 'imap_source.dart';
 
 /// Bump when email parsing changes should apply to already-imported mail.
-const emailParserVersion = 1;
+const emailParserVersion = 2;
 
 abstract final class EmailPrefKeys {
   static const enabled = 'email.enabled';
@@ -205,18 +205,15 @@ class EmailSyncController extends Notifier<EmailSyncState> {
         state = state.copyWith(running: false, error: 'Email password missing — reconnect in Settings');
         return null;
       }
-      // Parser improved since the last import → re-parse everything once.
-      if ((_prefs.getInt(EmailPrefKeys.parserVersion) ?? 0) != emailParserVersion) {
-        await ref.read(databaseProvider).resetSource(SourceKind.email);
-        await _prefs.remove(EmailPrefKeys.lastSync);
-      }
-      final last = _prefs.getInt(EmailPrefKeys.lastSync);
+      final parserChanged = (_prefs.getInt(EmailPrefKeys.parserVersion) ?? 0) != emailParserVersion;
+      final last = parserChanged ? null : _prefs.getInt(EmailPrefKeys.lastSync);
       final importFrom = _prefs.getInt(EmailPrefKeys.importFrom) ?? 0;
       final since = last == null
           ? DateTime.fromMillisecondsSinceEpoch(importFrom)
           : DateTime.fromMillisecondsSinceEpoch(last).subtract(const Duration(days: 1));
       final started = DateTime.now();
       final messages = await ref.read(emailSourceFactoryProvider)(account, password).fetchSince(since);
+      if (parserChanged) await ref.read(ingestionProvider).reparseSkipped(source: SourceKind.email, all: true);
       final report = await ref.read(ingestionProvider).ingest(messages);
       await _prefs.setInt(EmailPrefKeys.lastSync, started.millisecondsSinceEpoch);
       await _prefs.setInt(EmailPrefKeys.parserVersion, emailParserVersion);

@@ -110,7 +110,7 @@ class DataExport {
 
   // --------------------------------------------------------------- backup
 
-  Future<Map<String, Object?>> backup() async {
+  Future<Map<String, Object?>> backup() => db.transaction(() async {
     final tables = <String, List<Map<String, Object?>>>{};
     for (final t in db.allTables) {
       final rows = await db.customSelect('SELECT * FROM "${t.actualTableName}"', readsFrom: {t}).get();
@@ -125,7 +125,7 @@ class DataExport {
       'exportedAt': DateTime.now().toUtc().toIso8601String(),
       'tables': tables,
     };
-  }
+  });
 
   Future<String> backupJson() async => const JsonEncoder.withIndent(' ').convert(await backup());
 

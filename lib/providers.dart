@@ -24,9 +24,9 @@ final databaseProvider = Provider<AppDatabase>((ref) {
 });
 
 /// Bump whenever parser/categoriser changes should apply to already-imported
-/// SMS. The next sync re-parses everything (manual entries and learned
-/// merchant rules are kept).
-const smsParserVersion = 4;
+/// SMS. The next sync re-reads history and retries skipped messages in place;
+/// recorded transactions, user changes and deletion tombstones are preserved.
+const smsParserVersion = 5;
 
 final ingestionProvider = Provider((ref) {
   final home = ref.watch(homeCurrencyProvider);
@@ -157,23 +157,35 @@ class SmsSyncController extends Notifier<SmsSyncState> {
 
   /// Asks for permission and imports the last [months] of messages.
   Future<bool> connect({int months = 6}) async {
-    final sms = ref.read(smsSourceProvider);
-    if (!sms.isSupported) {
-      state = state.copyWith(error: 'SMS access is only available on Android');
+    if (state.running) return false;
+    try {
+      final sms = ref.read(smsSourceProvider);
+      if (!sms.isSupported) {
+        state = state.copyWith(error: 'SMS access is only available on Android');
+        return false;
+      }
+      if (!await sms.requestPermission()) {
+        state = state.copyWith(
+          error: 'SMS permission was denied. Allow SMS in your phone\'s app settings, then try again. You can also skip and add transactions manually.',
+        );
+        return false;
+      }
+      // Notification permission must not prevent importing an allowed inbox.
+      if (_prefs.getBool(PrefKeys.smsAlerts) ?? true) {
+        try {
+          await sms.requestNotifications();
+        } catch (_) {}
+      }
+      final from = DateTime(DateTime.now().year, DateTime.now().month - months, DateTime.now().day);
+      await _prefs.setBool(PrefKeys.smsEnabled, true);
+      await _prefs.setInt(PrefKeys.smsImportFrom, from.millisecondsSinceEpoch);
+      await _prefs.remove(PrefKeys.smsLastSync);
+      state = state.copyWith(enabled: true);
+      return await sync() != null;
+    } catch (e) {
+      state = state.copyWith(running: false, error: 'Could not connect SMS. Please try again. ($e)');
       return false;
     }
-    if (!await sms.requestPermission()) {
-      state = state.copyWith(error: 'SMS permission was denied');
-      return false;
-    }
-    if (_prefs.getBool(PrefKeys.smsAlerts) ?? true) await sms.requestNotifications();
-    final from = DateTime(DateTime.now().year, DateTime.now().month - months, DateTime.now().day);
-    await _prefs.setBool(PrefKeys.smsEnabled, true);
-    await _prefs.setInt(PrefKeys.smsImportFrom, from.millisecondsSinceEpoch);
-    await _prefs.remove(PrefKeys.smsLastSync);
-    state = state.copyWith(enabled: true);
-    await sync();
-    return true;
   }
 
   Future<void> disconnect() async {
@@ -192,23 +204,20 @@ class SmsSyncController extends Notifier<SmsSyncState> {
     }
     state = state.copyWith(running: true);
     try {
-      // Parser improved since the last import → re-parse everything once.
-      if ((_prefs.getInt(PrefKeys.smsParserVersion) ?? 0) != smsParserVersion) {
-        await ref.read(databaseProvider).resetSource(SourceKind.sms);
-        await _prefs.remove(PrefKeys.smsLastSync);
-      }
+      final parserChanged = (_prefs.getInt(PrefKeys.smsParserVersion) ?? 0) != smsParserVersion;
       // Pick up spends (foreign ones, mostly) that v1.0 skipped.
       if (!(_prefs.getBool(PrefKeys.skippedReparsed) ?? false)) {
         await ref.read(ingestionProvider).reparseSkipped();
         await _prefs.setBool(PrefKeys.skippedReparsed, true);
       }
-      final last = _prefs.getInt(PrefKeys.smsLastSync);
+      final last = parserChanged ? null : _prefs.getInt(PrefKeys.smsLastSync);
       final importFrom = _prefs.getInt(PrefKeys.smsImportFrom) ?? 0;
       final since = last == null
           ? DateTime.fromMillisecondsSinceEpoch(importFrom)
           : DateTime.fromMillisecondsSinceEpoch(last).subtract(const Duration(days: 1));
       final started = DateTime.now();
       final messages = await sms.readSince(since);
+      if (parserChanged) await ref.read(ingestionProvider).reparseSkipped(source: SourceKind.sms, all: true);
       final report = await ref.read(ingestionProvider).ingest(messages);
       await _prefs.setInt(PrefKeys.smsLastSync, started.millisecondsSinceEpoch);
       await _prefs.setInt(PrefKeys.smsParserVersion, smsParserVersion);
@@ -326,7 +335,7 @@ final trendTxnsProvider = StreamProvider<List<TxnView>>((ref) {
 
 final allTxnsProvider = StreamProvider<List<TxnView>>((ref) {
   ref.watch(homeCurrencyProvider);
-  return ref.watch(databaseProvider).watchTxns(limit: 2000);
+  return ref.watch(databaseProvider).watchTxns();
 });
 
 final categoriesProvider = StreamProvider<List<Category>>((ref) => ref.watch(databaseProvider).watchCategories());

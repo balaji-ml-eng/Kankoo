@@ -30,6 +30,8 @@ class _LlmSettingsScreenState extends ConsumerState<LlmSettingsScreen> {
   var _testing = false;
   (bool, String)? _testResult;
   var _saving = false;
+  var _loadingKey = true;
+  var _keyRequest = 0;
 
   @override
   void initState() {
@@ -50,15 +52,30 @@ class _LlmSettingsScreenState extends ConsumerState<LlmSettingsScreen> {
   }
 
   Future<void> _loadKey() async {
-    final k = await ref.read(llmConfigProvider.notifier).readKey(_preset.id);
-    if (mounted) setState(() => _key.text = k ?? '');
+    final id = _preset.id;
+    final request = ++_keyRequest;
+    try {
+      final k = await ref.read(llmConfigProvider.notifier).readKey(id);
+      if (mounted && _preset.id == id && request == _keyRequest) {
+        setState(() {
+          _key.text = k ?? '';
+          _loadingKey = false;
+        });
+      }
+    } catch (_) {
+      if (mounted && _preset.id == id && request == _keyRequest) {
+        setState(() => _modelsError = 'Could not read the saved key. Choose the provider again to retry.');
+      }
+    }
   }
 
   void _pickPreset(LlmPreset p) {
-    if (!p.available || p.id == _preset.id) return;
+    if (!p.available || (p.id == _preset.id && !_loadingKey)) return;
     final saved = ref.read(llmConfigProvider);
     setState(() {
       _preset = p;
+      _key.clear();
+      _loadingKey = true;
       _baseUrl.text = saved.presetId == p.id && saved.baseUrl.isNotEmpty ? saved.baseUrl : p.baseUrl;
       _model.text = saved.presetId == p.id ? saved.model : (p.suggestedModels.firstOrNull ?? '');
       _models = [];
@@ -194,7 +211,7 @@ class _LlmSettingsScreenState extends ConsumerState<LlmSettingsScreen> {
                 ChoiceChip(
                   label: Text(p.label),
                   selected: p.id == _preset.id,
-                  onSelected: p.available ? (_) => _pickPreset(p) : null,
+                  onSelected: p.available && !_saving && !_testing && !_loadingModels ? (_) => _pickPreset(p) : null,
                 ),
             ],
           ),
@@ -227,6 +244,7 @@ class _LlmSettingsScreenState extends ConsumerState<LlmSettingsScreen> {
             ],
             TextField(
               controller: _key,
+              enabled: !_loadingKey,
               obscureText: _obscure,
               autocorrect: false,
               enableSuggestions: false,
@@ -262,7 +280,7 @@ class _LlmSettingsScreenState extends ConsumerState<LlmSettingsScreen> {
               children: [
                 Expanded(
                   child: OutlinedButton.icon(
-                    onPressed: _loadingModels ? null : _fetchModels,
+                    onPressed: _loadingModels || _loadingKey ? null : _fetchModels,
                     icon: _loadingModels
                         ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
                         : const Icon(PhosphorIconsBold.arrowsClockwise, size: 18),
@@ -272,7 +290,7 @@ class _LlmSettingsScreenState extends ConsumerState<LlmSettingsScreen> {
                 const SizedBox(width: 10),
                 Expanded(
                   child: OutlinedButton.icon(
-                    onPressed: _testing ? null : _test,
+                    onPressed: _testing || _loadingKey ? null : _test,
                     icon: _testing
                         ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
                         : const Icon(PhosphorIconsBold.plugsConnected, size: 18),
@@ -299,7 +317,7 @@ class _LlmSettingsScreenState extends ConsumerState<LlmSettingsScreen> {
             const SizedBox(height: 14),
             FilledButton(
               style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(48)),
-              onPressed: _saving ? null : _save,
+              onPressed: _saving || _loadingKey ? null : _save,
               child: Text(connected ? 'Save changes' : 'Save & connect'),
             ),
           ],

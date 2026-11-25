@@ -6,6 +6,7 @@ import '../core/currency.dart';
 import '../data/db/database.dart';
 import '../ingestion/ingestion_service.dart';
 import '../ingestion/parser/parsed_txn.dart';
+import '../ingestion/parser/currency_text.dart';
 import '../ingestion/parser/senders.dart';
 import '../ingestion/parser/text_utils.dart';
 import 'llm_client.dart';
@@ -154,10 +155,13 @@ Rules: copy the amount exactly from the text, never compute, convert or guess it
     final amount = asNumber(r['amount']);
     if (amount == null || amount <= 0) return const _Failed('no amount');
     final code = asString(r['currency'])?.toUpperCase();
+    if (code != null && !isSupportedCurrency(code)) return const _Failed('unknown currency');
     final currency = code != null && isSupportedCurrency(code) ? code : home;
+    final scaled = amount * minorPerUnit(currency);
+    if ((scaled - scaled.round()).abs() > 0.000001) return const _Failed('invalid decimal precision');
     final minor = toMinor(amount, currency);
     if (minor > maxAmountMinor) return const _Failed('implausible amount');
-    if (!amountAppearsIn(minor, m.body, currency: currency)) return const _Failed('amount not in message');
+    if (!amountAppearsIn(minor, m.body, currency: currency, home: home)) return const _Failed('amount not in message');
 
     final direction = switch (asString(r['direction'])?.toLowerCase()) {
       'debit' => TxnDirection.debit,
@@ -198,13 +202,20 @@ Rules: copy the amount exactly from the text, never compute, convert or guess it
     );
   }
 
-  /// The whole-unit part (rupees, dollars) must literally appear in the
-  /// message (ignoring thousands separators) — guards against hallucinated
-  /// amounts.
-  static bool amountAppearsIn(int minor, String body, {String currency = 'INR'}) {
-    final digits = body.replaceAll(',', '');
-    final whole = minor ~/ minorPerUnit(currency);
-    return RegExp('(?<![0-9])$whole(?![0-9])').hasMatch(digits);
+  /// Require an exact monetary token, including its currency and decimals.
+  static bool amountAppearsIn(int minor, String body, {String currency = 'INR', String? home}) {
+    final text = normalizeCurrencyText(body).toLowerCase();
+    bool matches(String token, String amount) {
+      if (currencyOfToken(token, home: home ?? Currencies.home) != currency) return false;
+      final decimals = amount.split('.');
+      if (decimals.length > 1 && decimals.last.length > currencyDigits(currency)) return false;
+      return parseMinor(amount, digits: currencyDigits(currency)) == minor;
+    }
+
+    final prefix = RegExp('$currencyTokenPattern\\s*$amountPattern(?![0-9.,])');
+    if (prefix.allMatches(text).any((m) => matches(m[1]!, m[2]!))) return true;
+    final suffix = RegExp('(?<![0-9.,])$amountPattern${currencySuffix.pattern.substring(1)}');
+    return suffix.allMatches(text).any((m) => matches(m[2]!, m[1]!));
   }
 }
 

@@ -88,6 +88,35 @@ void main() {
   tearDown(() => db.close());
 
   group('LLM fallback parsing', () {
+    test('amount validation requires exact decimals and matching currency', () {
+      expect(LlmFallbackParser.amountAppearsIn(1299, 'INR 12.50 debited'), isFalse);
+      expect(LlmFallbackParser.amountAppearsIn(1250, 'INR 12.50 debited'), isTrue);
+      expect(LlmFallbackParser.amountAppearsIn(1250, '12.50 USD debited'), isFalse);
+      expect(LlmFallbackParser.amountAppearsIn(1250, '12.50 USD debited', currency: 'USD'), isTrue);
+      expect(LlmFallbackParser.amountAppearsIn(123400, 'Account 1234 debited; balance INR 50'), isFalse);
+      expect(LlmFallbackParser.amountAppearsIn(12500, 'KWD 12.500 spent', currency: 'KWD'), isTrue);
+      expect(LlmFallbackParser.amountAppearsIn(1200, 'JPY 1,200 spent', currency: 'JPY'), isTrue);
+      expect(LlmFallbackParser.amountAppearsIn(1250, 'INR 12.501 spent'), isFalse);
+      expect(LlmFallbackParser.amountAppearsIn(1250, r'$12.50 spent', currency: 'CAD', home: 'INR'), isFalse);
+      expect(LlmFallbackParser.amountAppearsIn(1250, r'$12.50 spent', currency: 'CAD', home: 'CAD'), isTrue);
+    });
+
+    test('AI cannot round an invented fractional amount into a valid message amount', () async {
+      final m = await pendingRow('INR 12.50 debited');
+      final client = FakeLlm([
+        (_) => text(
+          jsonEncode({
+            'results': [
+              {'id': m.id, 'isTransaction': true, 'amount': 12.501, 'currency': 'INR', 'direction': 'debit'},
+            ],
+          }),
+        ),
+      ]);
+      final report = await LlmFallbackParser(db: db, ingestion: svc, client: client).run();
+      expect(report.failed, 1);
+      expect(report.added, 0);
+      expect(await db.select(db.transactions).get(), isEmpty);
+    });
     test('applies to the existing raw row and dedups against an SMS transaction', () async {
       await svc.ingest([
         sms('VM-HDFCBK', 'Sent Rs.250.00 From HDFC Bank A/C *4521 To SWIGGY On 12/10/26 Ref 528512345678', t0),

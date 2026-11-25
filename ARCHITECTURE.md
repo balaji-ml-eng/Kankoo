@@ -184,15 +184,15 @@ Android 13+ also needs the notification permission, which Kankoo asks for once.
 - **Upgrading from a plaintext install** happens once, on the first open: the plaintext file is
   exported into `kankoo.sqlite.enc-tmp` with `sqlcipher_export`, per-table row counts, `user_version` and
   integrity checks are compared, the files are swapped by rename, the result is verified again, and only
-  then is the plaintext copy (`kankoo.sqlite.plain-bak`) deleted. Any failure keeps the app on the
-  plaintext database and it retries on the next start. Every step logs with `[kankoo-db]`. If the key is
-  ever lost (keystore wiped) the unreadable file is kept aside as `kankoo.sqlite.unreadable-<time>` and a
-  new database is started.
+  then is the plaintext copy (`kankoo.sqlite.plain-bak`) deleted. Any failure blocks opening the database
+  and retries on the next start. The original file and stored key are preserved on unlock errors.
+  Every step logs with `[kankoo-db]`. If the key is ever lost (keystore wiped), opening is blocked
+  rather than creating a replacement database. Recovery requires the original key or an exported backup.
 - **No backups.** Android cloud backup and device-to-device transfer are disabled — the data and the
   key both stay on the phone (use the app's own export to move data).
 - **App lock** (Settings → Security, off by default): fingerprint / face / screen lock on a cold start
-  and after more than 2 minutes in the background. Turning it on requires one successful unlock; if the
-  phone's screen lock is later removed, the app lock switches itself off instead of locking you out.
+  and after more than 2 minutes in the background. Turning it on requires one successful unlock.
+  Canceled, failed or unavailable authentication keeps the app locked and its setting enabled.
 - **Hide in recent apps** sets `FLAG_SECURE` (blank app-switcher thumbnail, no screenshots), applied
   natively before the first frame.
 
@@ -202,9 +202,9 @@ Android 13+ also needs the notification permission, which Kankoo asks for once.
 flutter build apk --release      # R8 minify + resource shrinking (android/app/proguard-rules.pro)
 ```
 
-Without `android/key.properties` the release APK is signed with the debug key, which is fine for
-sideloading. For a proper upload key (keep it safe and never commit it — `*.jks` and
-`key.properties` are gitignored):
+Release tasks fail without `android/key.properties`; release builds never fall back to debug signing.
+Use `flutter build apk --debug` for local tests. For a stable release key, create it once and retain
+an encrypted backup (never commit it — `*.jks` and `key.properties` are gitignored):
 
 ```sh
 keytool -genkey -v -keystore ~/kankoo-upload.jks -keyalg RSA -keysize 2048 -validity 10000 -alias upload
@@ -222,6 +222,14 @@ storeFile=C:/Users/<you>/kankoo-upload.jks
 `storeFile` is resolved relative to `android/app/` unless absolute. Note that an APK signed with a new
 key can't be installed over one signed with the debug key — uninstall first (which deletes the data,
 so export it first).
+
+Before distributing an update, install an earlier build signed with the same release key on a spare
+phone, add made-up transactions and enable app lock, then install the newer APK without uninstalling.
+Verify records, categories, notes, conversions, deleted-message suppression, app lock and import
+checkpoints survive. Repeat on Android 11 and a recent Android version, including SMS denial/retry
+and large text on a small screen. This physical-device update check is required before public release;
+unit/widget tests do not replace it. The CI test APK uses a temporary debug key and is not an update
+channel with a stable signing identity.
 
 ### Icon and splash
 

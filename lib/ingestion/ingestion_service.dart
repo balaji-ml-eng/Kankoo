@@ -113,14 +113,22 @@ class IngestionService {
   /// so they appear without a destructive full re-import. Rows that still
   /// don't parse are left exactly as they were. Returns how many became
   /// (or merged into) transactions.
-  Future<int> reparseSkipped() async {
+  Future<int> reparseSkipped({SourceKind? source, bool all = false}) async {
     final rows =
         await (db.select(db.rawMessages)..where(
-              (m) =>
-                  (m.parseStatus.equalsValue(ParseStatus.ignored) &
-                      m.ignoreReason.isIn(const ['No amount', 'Not a transaction'])) |
-                  (m.parseStatus.equalsValue(ParseStatus.pendingLlm) &
-                      m.ignoreReason.isIn(const ['Could not read amount', 'Could not tell debit from credit'])),
+              (m) => all
+                  ? (source == null ? const Constant(true) : m.source.equalsValue(source)) &
+                        m.transactionId.isNull() &
+                        (m.ignoreReason.isNull() | m.ignoreReason.equals('Deleted by user').not()) &
+                        m.parseStatus.isIn([
+                          ParseStatus.ignored.index,
+                          ParseStatus.pendingLlm.index,
+                          ParseStatus.failed.index,
+                        ])
+                  : (m.parseStatus.equalsValue(ParseStatus.ignored) &
+                            m.ignoreReason.isIn(const ['No amount', 'Not a transaction'])) |
+                        (m.parseStatus.equalsValue(ParseStatus.pendingLlm) &
+                            m.ignoreReason.isIn(const ['Could not read amount', 'Could not tell debit from credit'])),
             ))
             .get();
     var n = 0;
@@ -356,8 +364,8 @@ class IngestionService {
     return created;
   }
 
-  /// Debit from one own account + equal credit into another within an hour
-  /// ⇒ both legs are a self-transfer and shouldn't count as spend/income.
+  /// Opposite legs on different accounts with the same amount, currency,
+  /// rail and bank reference within an hour are a self-transfer.
   Future<void> _detectSelfTransfer(int id, ParsedTxn t, String currency, int accountId, int? transferCategory) async {
     final opposite = t.direction == TxnDirection.debit ? TxnDirection.credit : TxnDirection.debit;
     final legs = await db.candidatesFor(
@@ -367,8 +375,22 @@ class IngestionService {
       at: t.occurredAt,
       window: const Duration(hours: 1),
     );
-    final other = legs.where((l) => l.accountId != null && l.accountId != accountId && !l.isTransfer).firstOrNull;
-    if (other == null) return;
+    // Equal amounts/times are insufficient: unrelated refunds and purchases
+    // must stay in totals. Require the same bank reference on both legs.
+    final reference = t.reference?.toUpperCase();
+    if (reference == null || reference.length < 6) return;
+    final matches = legs
+        .where(
+          (l) =>
+              l.accountId != null &&
+              l.accountId != accountId &&
+              !l.isTransfer &&
+              l.reference?.toUpperCase() == reference &&
+              l.mode == t.mode,
+        )
+        .toList();
+    if (matches.length != 1) return;
+    final other = matches.single;
     await (db.update(db.transactions)..where((x) => x.id.isIn([id, other.id]))).write(
       TransactionsCompanion(
         isTransfer: const Value(true),

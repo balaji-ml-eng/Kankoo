@@ -104,6 +104,7 @@ String imapSearchCriteria(DateTime since) {
 }
 
 Future<List<RawInput>> _fetch(EmailAccount a, String password, DateTime since, int limit) async {
+  if (limit <= 0) throw ArgumentError.value(limit, 'limit');
   final client = await _login(a, password);
   try {
     await client.selectInbox();
@@ -115,15 +116,19 @@ Future<List<RawInput>> _fetch(EmailAccount a, String password, DateTime since, i
       // Server refused the long OR query: narrow by date only, then filter
       // on headers (cheap) before downloading bodies.
       final r = await client.uidSearchMessages(searchCriteria: 'SINCE ${imapDate(since)}');
-      uids = await _filterByHeaders(client, r.matchingSequence?.toList() ?? [], limit);
+      uids = await _filterByHeaders(client, r.matchingSequence?.toList() ?? []);
     }
     uids.sort();
-    if (uids.length > limit) uids = uids.sublist(uids.length - limit);
 
     final out = <RawInput>[];
-    for (var i = 0; i < uids.length; i += 20) {
-      final chunk = uids.sublist(i, (i + 20).clamp(0, uids.length));
+    final pageSize = limit.clamp(1, 20);
+    for (var i = 0; i < uids.length; i += pageSize) {
+      final chunk = uids.sublist(i, (i + pageSize).clamp(0, uids.length));
       final res = await client.uidFetchMessages(MessageSequence.fromIds(chunk, isUid: true), '(UID BODY.PEEK[])');
+      final fetched = res.messages.map((m) => m.uid).toSet();
+      if (!chunk.every(fetched.contains)) {
+        throw const EmailConnectException('Some emails could not be downloaded. Please sync again.');
+      }
       for (final m in res.messages) {
         final input = _toInput(m);
         if (input != null) out.add(input);
@@ -135,14 +140,16 @@ Future<List<RawInput>> _fetch(EmailAccount a, String password, DateTime since, i
   }
 }
 
-Future<List<int>> _filterByHeaders(ImapClient client, List<int> uids, int limit) async {
+Future<List<int>> _filterByHeaders(ImapClient client, List<int> uids) async {
   uids.sort();
-  // Look at no more than ~10x the body cap of the newest messages.
-  final recent = uids.length > limit * 10 ? uids.sublist(uids.length - limit * 10) : uids;
   final keep = <int>[];
-  for (var i = 0; i < recent.length; i += 200) {
-    final chunk = recent.sublist(i, (i + 200).clamp(0, recent.length));
+  for (var i = 0; i < uids.length; i += 200) {
+    final chunk = uids.sublist(i, (i + 200).clamp(0, uids.length));
     final res = await client.uidFetchMessages(MessageSequence.fromIds(chunk, isUid: true), '(UID ENVELOPE)');
+    final fetched = res.messages.map((m) => m.uid).toSet();
+    if (!chunk.every(fetched.contains)) {
+      throw const EmailConnectException('Some email headers could not be read. Please sync again.');
+    }
     for (final m in res.messages) {
       final from = m.from?.firstOrNull?.email ?? m.fromEmail ?? '';
       if (m.uid != null && looksFinancialHeader(from, m.decodeSubject() ?? '')) keep.add(m.uid!);
