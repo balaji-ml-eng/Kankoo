@@ -82,13 +82,13 @@ the device and has nothing to sell you.
 
 You need Android 11 or newer on a 64-bit ARM phone. There is no finished release yet.
 
-1. Sign in to GitHub, open [Build test APK](https://github.com/balaji-ml-eng/Kankoo/actions/workflows/build-apk.yml)
-   and select the latest successful run.
-2. Under **Artifacts**, download `kankoo-debug-apk` and extract the ZIP to get `app-debug.apk`.
-   Downloads expire after 14 days. If none is available, the repository owner can start a new build
-   with **Run workflow**.
-3. Copy the APK to your phone and open it. If asked, allow your file app to install unknown apps,
-   and turn that permission off afterwards.
+**[⬇ Download the Kankoo test APK](https://github.com/balaji-ml-eng/Kankoo/releases/download/test-build/kankoo-test.apk)**
+(no GitHub sign-in needed)
+
+1. Download the APK on your Android phone.
+2. Open it. If asked, allow your browser or file app to install unknown apps, and turn that
+   permission off afterwards.
+3. Tap **Install**.
 
 A later test build may not install over this one. Uninstalling the app deletes its saved data.
 
