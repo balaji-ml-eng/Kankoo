@@ -32,7 +32,22 @@ jobs:
         run: dart run build_runner build -d
 
       - name: Build debug APK
-        run: flutter build apk --debug --target-platform android-arm64
+        shell: bash
+        run: flutter build apk --debug --target-platform android-arm64 2>&1 | tee build.log
+
+      # Annotations can be read without the full log, so publish the key lines.
+      - name: Report build error
+        if: failure()
+        shell: bash
+        run: |
+          [ -f build.log ] || exit 0
+          report() {
+            body=$(head -c 3500 | sed 's/%/%25/g' | awk '{printf "%s%%0A", $0}')
+            echo "::error title=$1::$body"
+          }
+          { grep -A20 -F 'What went wrong' build.log || true; } | report "What went wrong"
+          { grep -E '^e: |[Ee]rror:|Error (|FAILURE|Exception:' build.log || true; } | head -40 | report "Error lines"
+          tail -n 30 build.log | report "Log tail"
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
