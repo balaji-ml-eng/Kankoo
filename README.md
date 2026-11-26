@@ -30,6 +30,8 @@ This branch is separate from the Android release and `feature/ca-evidence-ledger
 GitHub macOS checks build unsigned iPhone and simulator apps; Apple signing is
 required before installing on a real iPhone or distributing through TestFlight.
 Real Message triggers and locked-phone delivery still require device testing.
+For initial friend testing, use the unsigned IPA with AltStore Classic and
+refresh free-account installs weekly. See the [IPA installation guide](IOS_SIDELOAD.txt).
 
 ## The idea
 

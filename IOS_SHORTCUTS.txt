@@ -64,8 +64,9 @@ remains iOS 17; compiling with a newer SDK does not require iOS 26 to install.
 The workflow runs native inbox tests, Flutter analysis/tests, an unsigned
 iPhone release build, a simulator build, native simulator XCTest coverage and
 a Flutter integration test of the real bridge, Keychain and SQLCipher ledger.
-Its unsigned .app artifact cannot be installed directly on a physical iPhone.
-Apple signing/provisioning is still needed for device installs or TestFlight.
+Its unsigned IPA can be signed and installed through AltStore Classic for
+initial friend testing; follow IOS_SIDELOAD.txt. Apple signing/provisioning is
+still required, either through the tester's account or for TestFlight/App Store.
 No signing credentials are stored in this branch.
 
 VALIDATION
