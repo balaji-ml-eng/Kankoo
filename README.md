@@ -128,6 +128,34 @@ See [startup investigation and checks](STARTUP_HOTFIX.txt) for the APK validatio
 - [ ] The SMS button and Skip remain reachable with large text on a small screen.
 - [ ] Denying SMS shows retry/settings guidance; allowing SMS completes import successfully.
 
+## Install on iPhone (test IPA)
+
+**[⬇ Download the Kankoo 1.0.3 iPhone IPA](https://github.com/balaji-ml-eng/Kankoo/releases/download/ios-v1.0.3-sideload.1/kankoo-ios-1.0.3-sideload.ipa)**
+(about 28 MB, iOS 17 or newer)
+
+> **Warning: for testing only.** This IPA has **not been tested on a real iPhone**. The app code
+> got past startup in an iOS simulator debug build, which is not this file. The security of the iOS
+> version has not been reviewed. Use made-up data only. Do not set up bank message forwarding, and
+> do not connect email or AI.
+
+The IPA is unsigned, so tapping it does not install it. These steps use AltStore Classic with a
+Windows computer, a USB cable and your own Apple account.
+
+1. Install AltServer and the Apple software it needs, following the official
+   [AltStore Windows guide](https://faq.altstore.io/altstore-classic/how-to-install-altstore-windows).
+2. Connect your iPhone by USB, unlock it and tap **Trust**.
+3. Follow the guide to turn on Wi-Fi sync and install AltStore on the iPhone.
+4. If the iPhone asks, trust your account in **Settings → General → VPN & Device Management**, and
+   turn on **Developer Mode** in **Settings → Privacy & Security**, then restart.
+5. On the iPhone, download the IPA with the link above.
+6. Keep AltServer running, with the computer and iPhone on the same Wi-Fi. In AltStore, open
+   **My Apps → +** and choose the IPA.
+
+With a free Apple account, open **AltStore → My Apps → Refresh All** before 7 days pass, with
+AltServer running. Otherwise the app stops opening until it is refreshed. Do not delete the app to
+refresh it, because that can lose its data. Enter your Apple password only as the official AltStore
+guide directs, and never share it or verification codes with anyone.
+
 ## Setup guides
 
 <details>
