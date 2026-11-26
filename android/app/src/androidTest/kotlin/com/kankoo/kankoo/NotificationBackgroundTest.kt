@@ -1,6 +1,9 @@
 package com.kankoo.kankoo
 
 import android.content.Context
+import android.app.Notification
+import android.app.NotificationChannel
+import android.app.NotificationManager
 import android.os.Handler
 import android.os.Looper
 import androidx.test.core.app.ActivityScenario
@@ -42,11 +45,27 @@ class NotificationBackgroundTest {
         assertFalse(NotificationBridge.activityPresent)
         assertNull(NotificationBridge.foregroundChannel)
         val prefs = NotificationBridge.preferences(context)
-        prefs.edit().putBoolean("enabled", true).putStringSet("packages", setOf("com.phonepe.app")).commit()
+        // Synthetic alert from our own UID, selected only by this disposable test.
+        // Production configure rejects the app's own package.
+        prefs.edit().putBoolean("enabled", true).putStringSet("packages", setOf(context.packageName)).commit()
         val body = "Sent Rs.250.01 From HDFC Bank A/C *4521 To AWS On 26/11/26 Ref 528512345678"
-        NotificationInbox(context).use { inbox ->
-            assertTrue(inbox.append("com.phonepe.app", "real-headless-smoke", 1795674600000, body))
-            assertEquals(1, inbox.count())
+        val manager = context.getSystemService(NotificationManager::class.java)
+        manager.createNotificationChannel(NotificationChannel("capture-smoke", "Capture test", NotificationManager.IMPORTANCE_LOW))
+        NotificationWork.gate.acquire()
+        try {
+            manager.notify(9127, Notification.Builder(context, "capture-smoke").setSmallIcon(android.R.drawable.ic_dialog_info)
+                .setContentTitle("Payment alert").setContentText(body).setWhen(1795674600000).build())
+            val captureDeadline = System.currentTimeMillis() + 30000
+            var count = 0
+            while (count == 0 && System.currentTimeMillis() < captureDeadline) {
+                NotificationInbox(context).use { count = it.count() }
+                if (count == 0) Thread.sleep(100)
+            }
+            assertEquals("NotificationListenerService did not persist the alert", 1, count)
+            val queuedFile = File(context.noBackupFilesDir, "notification-inbox-v1.sqlite")
+            assertFalse(String(queuedFile.readBytes(), Charsets.ISO_8859_1).contains(body))
+        } finally {
+            NotificationWork.gate.release()
         }
         val worker = TestListenableWorkerBuilder<NotificationWork>(context).build()
         assertEquals(ListenableWorker.Result.success(), worker.doWork())
@@ -60,5 +79,6 @@ class NotificationBackgroundTest {
         database.inputStream().use { it.read(header) }
         assertFalse(String(header, Charsets.ISO_8859_1).startsWith("SQLite format 3"))
         prefs.edit().putBoolean("enabled", false).commit()
+        manager.cancel(9127)
     }
 }

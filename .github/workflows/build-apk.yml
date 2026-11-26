@@ -118,6 +118,8 @@ jobs:
           script: |
             adb install -r build/app/outputs/flutter-apk/app-release.apk
             adb install -r build/app/outputs/apk/androidTest/debug/app-debug-androidTest.apk
+            adb shell cmd notification allow_listener com.kankoo.kankoo/com.kankoo.kankoo.BankNotificationListener
+            if [ "${{ matrix.api }}" -ge 33 ]; then adb shell pm grant com.kankoo.kankoo android.permission.POST_NOTIFICATIONS; fi
             adb shell am instrument -w -r com.kankoo.kankoo.test/androidx.test.runner.AndroidJUnitRunner | tee notification-runtime.txt
             grep -q 'OK (1 test)' notification-runtime.txt
       - uses: actions/upload-artifact@v4
