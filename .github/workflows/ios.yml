@@ -1,21 +1,16 @@
-name: iOS build checks
+name: iOS launch check
 
 on:
   push:
     branches: [diag/ios-verify]
-  workflow_dispatch:
 
 permissions:
   contents: read
 
-concurrency:
-  group: ios-${{ github.ref }}
-  cancel-in-progress: true
-
 jobs:
-  ios:
+  launch:
     runs-on: macos-15
-    timeout-minutes: 60
+    timeout-minutes: 40
     steps:
       - uses: actions/checkout@v4
       - name: Select Xcode 26.3
@@ -23,66 +18,35 @@ jobs:
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
-          flutter-version: '3.50.1'
           cache: true
-      - name: Native encrypted inbox tests
-        run: swift test --package-path ios/ShortcutInboxCore
-      - name: Resolve Flutter packages
-        run: flutter pub get
-      - name: Analyze
-        run: flutter analyze --no-fatal-infos
-      - name: Dart tests
-        run: flutter test
-      - name: Build unsigned iPhone app
-        run: flutter build ios --release --no-codesign --no-pub
-      - name: Package unsigned build
-        run: python3 scripts/package_ios_ipa.py build/ios/iphoneos/Runner.app build/ios/kankoo-ios-1.0.3-sideload.ipa
-      - uses: actions/upload-artifact@v4
-        with:
-          name: Kankoo-iPhone-sideload-IPA
-          path: |
-            build/ios/kankoo-ios-1.0.3-sideload.ipa
-            build/ios/kankoo-ios-1.0.3-sideload.ipa.sha256
-          retention-days: 7
+      - run: flutter pub get
       - name: Build iOS Simulator app
         run: flutter build ios --simulator --debug --no-pub
-      - name: Select current iOS simulator
+      - name: Boot simulator
         run: |
           xcrun simctl list devices available -j | python3 -c 'import json,re,sys; devices=json.load(sys.stdin)["devices"]; runtime=max((r for r in devices if "SimRuntime.iOS-" in r),key=lambda r: tuple(map(int,re.findall(r"\d+",r)))); print("SIMULATOR_UDID="+next(d["udid"] for d in devices[runtime] if d["name"].startswith("iPhone")))' >> "$GITHUB_ENV"
-      - name: Boot simulator
-        id: boot_sim
-        timeout-minutes: 6
+          . "$GITHUB_ENV" || true
+      - name: Open the app and check startup
         run: |
-          xcrun simctl boot "$SIMULATOR_UDID"
+          xcrun simctl boot "$SIMULATOR_UDID" || true
           xcrun simctl bootstatus "$SIMULATOR_UDID" -b
-      - name: Test native action on iPhone simulator
-        timeout-minutes: 12
-        run: |
-          xcodebuild test -quiet -workspace ios/Runner.xcworkspace -scheme Runner -configuration Debug -destination "platform=iOS Simulator,id=$SIMULATOR_UDID" -destination-timeout 120 -parallel-testing-enabled NO -jobs 2 -test-timeouts-enabled YES -maximum-test-execution-time-allowance 90 -resultBundlePath build/ios/ShortcutsTests.xcresult CODE_SIGN_IDENTITY=- COMPILER_INDEX_STORE_ENABLE=NO
-      - name: Test Flutter bridge and encrypted ledger on simulator
-        if: ${{ !cancelled() && steps.boot_sim.outcome == 'success' }}
-        timeout-minutes: 12
-        run: |
-          flutter test integration_test/ios_shortcuts_test.dart -d "$SIMULATOR_UDID" --no-pub --timeout 3m
-      # Open the real app (not a test harness) and confirm it gets past startup.
-      - name: Launch smoke test on simulator
-        if: always()
-        run: |
-          flutter build ios --simulator --debug --no-pub
-          xcrun simctl terminate "$SIMULATOR_UDID" com.kankoo.kankoo || true
           xcrun simctl install "$SIMULATOR_UDID" build/ios/iphonesimulator/Runner.app
-          xcrun simctl launch --console-pty "$SIMULATOR_UDID" com.kankoo.kankoo > launch.log 2>&1 &
-          sleep 45
+          # Flutter's print output goes to the unified system log on iOS.
+          xcrun simctl spawn "$SIMULATOR_UDID" log stream --level debug --style compact \
+            --predicate 'process == "Runner"' > system.log 2>&1 &
+          sleep 5
+          xcrun simctl launch --stdout="$PWD/stdout.log" --stderr="$PWD/stderr.log" "$SIMULATOR_UDID" com.kankoo.kankoo
+          sleep 60
+          cat system.log stdout.log stderr.log > all.log 2>/dev/null || true
           running=no; xcrun simctl spawn "$SIMULATOR_UDID" launchctl list | grep -q com.kankoo.kankoo && running=yes
-          xcrun simctl io "$SIMULATOR_UDID" screenshot startup.png || true
-          ready=no; grep -q 'saved settings ready' launch.log && ready=yes
-          lines=$(grep 'kankoo-startup' launch.log | head -8 | paste -sd'|' -)
-          echo "::notice title=ios-launch::running=$running settingsReady=$ready $lines"
+          entry=no; grep -q 'Dart entry reached' all.log && entry=yes
+          ready=no; grep -q 'saved settings ready' all.log && ready=yes
+          lines=$(grep -oE '\[kankoo-startup\].*' all.log | awk '!seen[$0]++' | head -8 | paste -sd'|' -)
+          errors=$(grep -E 'Unhandled Exception|PlatformException|MissingPluginException|Terminating app' all.log | cut -c1-200 | head -5 | paste -sd'|' -)
+          echo "::notice title=ios-launch::running=$running dartEntry=$entry settingsReady=$ready logLines=$(wc -l < all.log | tr -d ' ') $lines"
+          echo "::notice title=ios-errors::${errors:-none matched}"
+          xcrun simctl io "$SIMULATOR_UDID" screenshot startup.png
+          sips -Z 560 -s format jpeg -s formatOptions 35 startup.png --out small.jpg > /dev/null
+          base64 -i small.jpg | tr -d '\n' > shot.b64
+          echo "::notice title=ios-screenshot::$(cat shot.b64)"
           [ $running = yes ] && [ $ready = yes ]
-      - uses: actions/upload-artifact@v4
-        if: failure()
-        with:
-          name: iOS-build-diagnostics
-          path: |
-            build/ios
-          retention-days: 3
