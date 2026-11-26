@@ -1,0 +1,52 @@
+name: iOS build checks
+
+on:
+  push:
+    branches: [feature/ios-support]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ios-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ios:
+    runs-on: macos-15
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: '3.50.1'
+          cache: true
+      - name: Native encrypted inbox tests
+        run: swift test --package-path ios/ShortcutInboxCore
+      - name: Resolve Flutter packages
+        run: flutter pub get
+      - name: Analyze
+        run: flutter analyze --no-fatal-infos
+      - name: Dart tests
+        run: flutter test
+      - name: Build unsigned iPhone app
+        run: flutter build ios --release --no-codesign --no-pub
+      - name: Build iOS Simulator app
+        run: flutter build ios --simulator --debug --no-pub
+      - name: Package unsigned build
+        run: ditto -c -k --sequesterRsrc --keepParent build/ios/iphoneos/Runner.app build/ios/Kankoo-unsigned.app.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Kankoo-iOS-unsigned
+          path: build/ios/Kankoo-unsigned.app.zip
+          retention-days: 7
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: iOS-build-diagnostics
+          path: |
+            build/ios
+            /var/folders/**/flutter_ios_build_temp_dir*/temporary_xcresult_bundle
+          retention-days: 3
