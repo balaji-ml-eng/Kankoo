@@ -153,7 +153,7 @@ class _NotificationCaptureScreenState extends ConsumerState<NotificationCaptureS
                         context,
                         'Automatic notification capture is available on Android. Use statement imports or manual entry on this device.',
                       ),
-                    if (_error != null) reviewNotice(context, _error!, error: true),
+                    if (_error != null) reviewNotice(context, _error!, review: true),
                     if (api.supported && s == null && _error == null) const LinearProgressIndicator(),
                     if (s != null) ...[
                       const SizedBox(height: 20),
@@ -214,19 +214,19 @@ class _NotificationCaptureScreenState extends ConsumerState<NotificationCaptureS
                         reviewNotice(
                           context,
                           'An alert could not be saved. Check storage and access, then retry. Notifications missed before saving may require a statement import.',
-                          error: true,
+                          review: true,
                         ),
                       if (s.processingError)
                         reviewNotice(
                           context,
                           'Processing was interrupted. Saved notifications remain encrypted and will be retried.',
-                          error: true,
+                          review: true,
                         ),
                       if (s.quarantined > 0)
                         reviewNotice(
                           context,
                           'Some records could not be decrypted. Their encrypted bytes were kept. Retry after restoring access; no key is replaced.',
-                          error: true,
+                          review: true,
                         ),
                       FilledButton(
                         onPressed: _busy || !s.enabled ? null : () => _change(api.retry),

@@ -14,12 +14,18 @@ String reviewError(Object error) => switch (error) {
     'The change could not be saved. Check payment balances and linked refunds, then try again. Your ledger was kept.',
 };
 
-Widget reviewNotice(BuildContext context, String message, {bool error = false}) => Container(
+Widget reviewNotice(BuildContext context, String message, {bool error = false, bool review = false}) => Container(
   width: double.infinity,
   margin: const EdgeInsets.symmetric(vertical: 12),
   padding: const EdgeInsets.all(14),
   decoration: BoxDecoration(
-    border: Border.all(color: error ? LedgerColors.mismatch : Theme.of(context).colorScheme.outlineVariant),
+    border: Border.all(
+      color: error
+          ? LedgerColors.mismatch
+          : review
+          ? LedgerColors.review
+          : Theme.of(context).colorScheme.outlineVariant,
+    ),
     borderRadius: BorderRadius.circular(10),
   ),
   child: Text(
