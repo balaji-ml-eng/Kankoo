@@ -37,8 +37,13 @@ final _routerProvider = Provider<GoRouter>((ref) {
       GoRoute(path: '/welcome', builder: (_, _) => const OnboardingScreen()),
       GoRoute(
         path: '/messages',
-        builder: (_, s) =>
-            MessagesScreen(source: s.uri.queryParameters['source'] == 'email' ? SourceKind.email : SourceKind.sms),
+        builder: (_, s) => MessagesScreen(
+          source: switch (s.uri.queryParameters['source']) {
+            'email' => SourceKind.email,
+            'shortcut' => SourceKind.shortcut,
+            _ => SourceKind.sms,
+          },
+        ),
       ),
       GoRoute(path: '/email/connect', builder: (_, _) => const EmailConnectScreen()),
       GoRoute(path: '/llm', builder: (_, _) => const LlmSettingsScreen()),

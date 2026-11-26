@@ -28,6 +28,18 @@ class SetupInbox extends ShortcutsInbox {
   Future<ShortcutBatch> pending() async => const ShortcutBatch([], 0, 0);
 }
 
+class SetupDatabase extends AppDatabase {
+  SetupDatabase() : super(NativeDatabase.memory());
+  SourceKind? logSource;
+  Set<ParseStatus>? logStatuses;
+  @override
+  Stream<List<RawMessage>> watchRawMessages(SourceKind source, Set<ParseStatus> statuses) {
+    logSource = source;
+    logStatuses = statuses;
+    return Stream.value(const []);
+  }
+}
+
 void main() {
   Future<ProviderContainer> show(WidgetTester tester, SetupInbox inbox, {bool onboarding = false}) async {
     tester.view.physicalSize = const Size(320, 568);
@@ -36,7 +48,7 @@ void main() {
     addTearDown(tester.view.resetDevicePixelRatio);
     SharedPreferences.setMockInitialValues({PrefKeys.onboarded: !onboarding});
     final prefs = await SharedPreferences.getInstance();
-    final db = AppDatabase(NativeDatabase.memory());
+    final db = SetupDatabase();
     addTearDown(db.close);
     final container = ProviderContainer(
       overrides: [
@@ -75,6 +87,19 @@ void main() {
     await tester.pumpAndSettle();
     expect(container.read(onboardedProvider), true);
     expect(find.text('Allow Shortcuts forwarding'), findsOneWidget);
+    final log = find.text('Review forwarded message log');
+    await tester.scrollUntilVisible(log, 180);
+    await tester.pumpAndSettle();
+    await tester.tap(log);
+    await tester.pumpAndSettle();
+    expect(find.text('Forwarded message log'), findsOneWidget);
+    final db = container.read(databaseProvider) as SetupDatabase;
+    expect(db.logSource, SourceKind.shortcut);
+    expect(db.logStatuses, {ParseStatus.ignored});
+    await tester.tap(find.text('Unreadable'));
+    await tester.pumpAndSettle();
+    expect(db.logSource, SourceKind.shortcut);
+    expect(db.logStatuses, {ParseStatus.pendingLlm});
     expect(tester.takeException(), isNull);
   });
 

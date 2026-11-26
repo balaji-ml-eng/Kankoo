@@ -10,7 +10,7 @@ import '../../data/db/database.dart';
 import '../../providers.dart';
 import '../../ui/widgets.dart';
 
-/// Shows how each SMS / email was handled — the main tool for spotting parser gaps.
+/// Shows how each source message was handled, including forwarded bank alerts.
 class MessagesScreen extends ConsumerStatefulWidget {
   const MessagesScreen({super.key, this.source = SourceKind.sms});
 
@@ -27,7 +27,13 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen> {
   Widget build(BuildContext context) {
     final db = ref.watch(databaseProvider);
     return Scaffold(
-      appBar: AppBar(title: Text(widget.source == SourceKind.email ? 'Email log' : 'SMS log')),
+      appBar: AppBar(
+        title: Text(switch (widget.source) {
+          SourceKind.email => 'Email log',
+          SourceKind.shortcut => 'Forwarded message log',
+          _ => 'SMS log',
+        }),
+      ),
       body: Column(
         children: [
           SizedBox(
@@ -41,6 +47,7 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen> {
                   (ParseStatus.pendingLlm, 'Unreadable'),
                   (ParseStatus.parsed, 'Parsed'),
                   (ParseStatus.merged, 'Merged'),
+                  (ParseStatus.failed, 'Failed'),
                 ])
                   Padding(
                     padding: const EdgeInsets.only(right: 8),

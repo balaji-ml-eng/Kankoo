@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../ingestion/share/shortcuts_inbox.dart';
 import '../../ingestion/share/share_intake.dart';
@@ -131,6 +132,12 @@ class _ShortcutsScreenState extends ConsumerState<ShortcutsScreen> {
               ],
             ),
             const SizedBox(height: 24),
+            TextButton.icon(
+              onPressed: () => context.push('/messages?source=shortcut'),
+              icon: const Icon(Icons.receipt_long),
+              label: const Text('Review forwarded message log'),
+            ),
+            const SizedBox(height: 16),
             Text('Set up the automation', style: theme.textTheme.titleLarge),
             const SizedBox(height: 12),
             for (final step in [
