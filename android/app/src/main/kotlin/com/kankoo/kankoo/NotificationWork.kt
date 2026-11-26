@@ -43,8 +43,13 @@ class NotificationWork(context: Context, parameters: WorkerParameters) : Worker(
                             val loader = FlutterInjector.instance().flutterLoader()
                             loader.startInitialization(applicationContext)
                             loader.ensureInitializationComplete(applicationContext, null)
-                            val background = FlutterEngine(applicationContext)
+                            // Register only storage/context plugins. The old preferences plugin
+                            // has a process-global registrar that another engine can unregister.
+                            val background = FlutterEngine(applicationContext, null, false)
                             engine = background
+                            background.plugins.add(com.github.dart_lang.jni.JniPlugin())
+                            background.plugins.add(com.github.dart_lang.jni_flutter.JniFlutterPlugin())
+                            background.plugins.add(com.it_nomads.fluttersecurestorage.FlutterSecureStoragePlugin())
                             MethodChannel(background.dartExecutor.binaryMessenger, NotificationBridge.CHANNEL)
                                 .setMethodCallHandler { call, result ->
                                     when (call.method) {
@@ -74,8 +79,7 @@ class NotificationWork(context: Context, parameters: WorkerParameters) : Worker(
         } finally {
             val destroyed = CountDownLatch(1)
             main.post { try { engine?.destroy() } finally { destroyed.countDown() } }
-            destroyed.await(10, TimeUnit.SECONDS)
-            gate.release()
+            try { destroyed.await(10, TimeUnit.SECONDS) } finally { gate.release() }
         }
     }
     companion object {

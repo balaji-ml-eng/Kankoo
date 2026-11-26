@@ -40,7 +40,9 @@ jobs:
         run: flutter build apk --debug 2>&1 | tee build.log
 
       - name: Verify APK architectures
-        run: python3 tool/verify_apk_architectures.py build/app/outputs/flutter-apk/app-debug.apk
+        run: |
+          python3 -m unittest discover -s tool -p test_verify_apk_architectures.py
+          python3 tool/verify_apk_architectures.py build/app/outputs/flutter-apk/app-debug.apk --debug
 
       # Annotations can be read without the full log, so publish the key lines.
       - name: Report build error
@@ -102,12 +104,16 @@ jobs:
           flutter build apk --debug --target-platform android-x64
           cd android
           chmod +x gradlew
-          ./gradlew :app:assembleDebugAndroidTest -Ptarget-platform=android-x64
+          ./gradlew :app:testDebugUnitTest :app:assembleDebugAndroidTest -Ptarget-platform=android-x64
           ./gradlew --stop
           cd ..
           # Disposable CI signing identity; never the persistent public-release key.
-          printf 'storeFile=%s/.android/debug.keystore\nstorePassword=android\nkeyAlias=androiddebugkey\nkeyPassword=android\n' "$HOME" > android/key.properties
+          keytool -genkeypair -keystore "$RUNNER_TEMP/ca-runtime.jks" -storepass android -keypass android -alias androiddebugkey -dname 'CN=Disposable CA runtime test' -keyalg RSA -keysize 2048 -validity 2
+          printf 'storeFile=%s/ca-runtime.jks\nstorePassword=android\nkeyAlias=androiddebugkey\nkeyPassword=android\n' "$RUNNER_TEMP" > android/key.properties
           flutter build apk --release --target-platform android-x64
+          python3 tool/verify_apk_architectures.py build/app/outputs/flutter-apk/app-release.apk
+          signer=$(find "$ANDROID_HOME/build-tools" -name apksigner | sort -V | tail -n 1)
+          "$signer" sign --ks "$RUNNER_TEMP/ca-runtime.jks" --ks-pass pass:android --key-pass pass:android --out "$RUNNER_TEMP/ca-runtime-test.apk" build/app/outputs/apk/androidTest/debug/app-debug-androidTest.apk
           cd android && ./gradlew --stop
       - uses: reactivecircus/android-emulator-runner@v2
         with:
@@ -117,7 +123,7 @@ jobs:
           disable-animations: true
           script: |
             adb install -r build/app/outputs/flutter-apk/app-release.apk
-            adb install -r build/app/outputs/apk/androidTest/debug/app-debug-androidTest.apk
+            adb install -r "$RUNNER_TEMP/ca-runtime-test.apk"
             adb shell cmd notification allow_listener com.kankoo.kankoo/com.kankoo.kankoo.BankNotificationListener
             if [ "${{ matrix.api }}" -ge 33 ]; then adb shell pm grant com.kankoo.kankoo android.permission.POST_NOTIFICATIONS; fi
             adb shell am instrument -w -r com.kankoo.kankoo.test/androidx.test.runner.AndroidJUnitRunner | tee notification-runtime.txt

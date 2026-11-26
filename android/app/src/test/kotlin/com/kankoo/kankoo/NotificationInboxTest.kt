@@ -4,6 +4,7 @@ import android.app.Notification
 import android.content.Context
 import android.database.sqlite.SQLiteDatabase
 import android.service.notification.StatusBarNotification
+import androidx.work.testing.TestListenableWorkerBuilder
 import org.junit.After
 import org.junit.Assert.*
 import org.junit.Before
@@ -99,6 +100,25 @@ class NotificationInboxTest {
         NotificationBridge.preferences(context).edit().putBoolean("enabled", true)
             .putStringSet("packages", setOf("other.bank")).commit()
         service.onNotificationPosted(sbn)
+        assertFalse(file.exists())
+    }
+    @Test fun interruptedShutdownAlwaysReleasesTheProcessingGate() {
+        val worker = TestListenableWorkerBuilder<NotificationWork>(context).build()
+        Thread.currentThread().interrupt()
+        try { worker.doWork() } catch (_: InterruptedException) { }
+        finally { Thread.interrupted() }
+        assertTrue("Interrupted worker leaked the processing gate", NotificationWork.gate.tryAcquire())
+        NotificationWork.gate.release()
+    }
+    @Test fun malformedNotificationDoesNotCrashTheListenerOrWritePlaintext() {
+        val service = Robolectric.buildService(BankNotificationListener::class.java).create().get()
+        NotificationBridge.preferences(context).edit().putBoolean("enabled", true)
+            .putStringSet("packages", setOf("com.phonepe.app")).commit()
+        val n = Notification.Builder(context, "test").build()
+        n.extras = null
+        service.onNotificationPosted(StatusBarNotification("com.phonepe.app", "com.phonepe.app", 1, null,
+            0, 0, 0, n, android.os.Process.myUserHandle(), 1795680000000))
+        assertTrue(NotificationBridge.preferences(context).getBoolean("captureError", false))
         assertFalse(file.exists())
     }
 }

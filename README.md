@@ -1,10 +1,10 @@
 <p align="center"><img src="assets/branding/kankoo-logo.svg" width="420" alt="Kankoo"></p>
 
 > **New CA evidence plan — development branch.**
-> `feature/ca-evidence-ledger` contains Milestones 1A, 1B and 1C (schema 7).
+> `feature/ca-evidence-ledger` contains Milestones 1A, 1B, 1C and the Milestone 2 notification-capture implementation (schema 8).
 > Monthly CA ZIP exports are available under Monthly books > Export for CA. This branch inherits the common startup/build safeguards from `main`.
-> The downloadable 1.0.3 APK below is the separate `main` hotfix (schema 4).
-> Development reports: [1A](MILESTONE_1A.txt), [1B](MILESTONE_1B.txt) and [1C](MILESTONE_1C.txt).
+> The downloadable 1.0.4 APK below is the separate `main` startup fix (schema 4); it does not include the new CA-plan features.
+> Development reports: [1A](MILESTONE_1A.txt), [1B](MILESTONE_1B.txt), [1C](MILESTONE_1C.txt) and [2](MILESTONE_2.txt).
 
 <p align="center"><b>A free, open-source finance tracker that fills itself in.</b></p>
 
@@ -92,14 +92,14 @@ the device and has nothing to sell you.
 You need Android 11 or newer. The universal APK includes complete ARM64, 32-bit ARM and x86_64
 libraries. On-device AI models require a supported 64-bit ARM phone.
 
-**[⬇ Download Kankoo 1.0.3 (build 7) — startup hotfix](https://github.com/balaji-ml-eng/Kankoo/releases/download/v1.0.3-test/kankoo-1.0.3-startup-fix.apk)**
+**[⬇ Download Kankoo 1.0.4 (build 8) — startup fix](https://github.com/balaji-ml-eng/Kankoo/releases/download/v1.0.4-test/kankoo-1.0.4.apk)**
 (no GitHub sign-in needed)
 
-This is a signed, non-debuggable release-mode APK. **287 automated tests** pass. It fixes an
-unbounded startup wait and incomplete CPU-architecture packaging found in 1.0.2, while retaining
-the earlier SMS permission, data-preservation, encryption and import fixes.
+This is the separate signed, non-debuggable release-mode APK from `main`. The old 1.0.3
+build could not load saved settings; 1.0.4 disables R8 shrinking to address that startup failure.
+This CA branch carries those same two release build settings without modifying `main`.
 
-**Updating from 1.0.2:** install this APK over the existing app. Its signing certificate matches.
+**Updating from 1.0.2 or 1.0.3:** install this APK over the existing app. Its signing certificate matches.
 Do not uninstall or clear app storage; that would remove local data and device-bound keys.
 
 **Updating from a legacy debug build:** the debug signature differs from the persistent release key.
@@ -116,12 +116,23 @@ Uninstalling the app deletes its saved data. Keep a backup before changing insta
 
 | Branch | Purpose |
 | --- | --- |
-| [`main`](https://github.com/balaji-ml-eng/Kankoo/tree/main) | Source for the published 1.0.3 startup hotfix; database schema 4. |
-| [`feature/ca-evidence-ledger`](https://github.com/balaji-ml-eng/Kankoo/tree/feature/ca-evidence-ledger) | Unreleased new CA evidence plan, Milestones 1A, 1B and 1C; database schema 7. |
+| [`main`](https://github.com/balaji-ml-eng/Kankoo/tree/main) | Source for the published 1.0.4 startup fix; database schema 4. |
+| [`feature/ca-evidence-ledger`](https://github.com/balaji-ml-eng/Kankoo/tree/feature/ca-evidence-ledger) | Unreleased CA evidence plan, Milestones 1A–1C and notification capture (2); database schema 8. |
 
 The published APK comes from `main`. New-plan features stay on the development branch.
-Common startup/build safeguards are carried forward into development. Monthly CA handoffs contain Excel-compatible CSVs, authenticated original PDFs, audit history and a SHA-256 manifest. These readable ZIPs are not complete restorable vault backups. The published APK startup investigation remains a separate task.
+Common startup/build safeguards are carried forward into development. Monthly CA handoffs contain Excel-compatible CSVs, authenticated original PDFs, audit history and a SHA-256 manifest. These readable ZIPs are not complete restorable vault backups.
 See [startup investigation and checks](STARTUP_HOTFIX.txt) for the APK validation and physical-phone testing limits.
+
+### Notification capture on the CA branch
+
+1. Open **Settings > Notification capture** and select the bank/payment apps you use.
+2. Enable **Capture selected apps**, then use **Open Android notification access** to grant access.
+3. Return to Kankoo and confirm both capture and Android access are enabled.
+4. Check pending/unreadable counts and **Review parsed and unreadable alerts**. Reconcile payments against a bank statement.
+
+If a sideloaded installation shows **Restricted setting**, review Kankoo's **App info > Allow restricted settings** before trying notification access again. This is an Android system decision; see [Google's explanation](https://support.google.com/android/answer/12623953?hl=en). Hidden notification content, force-stop and OEM battery restrictions can prevent capture. Capture is Android-only and starts disabled; notification access is broad, but only selected apps are persisted.
+
+Captured text is encrypted natively before background processing is scheduled. Acknowledgement follows the SQLCipher commit; retries preserve source IDs and deleted-payment tombstones. Complete encrypted vault backup/restore, Pro billing and a physical founder/CA pilot remain pending. See [Milestone 2](MILESTONE_2.txt) for verification and limits.
 
 ### Test checklist
 

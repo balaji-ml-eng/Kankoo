@@ -1,0 +1,152 @@
+Kankoo - Milestone 2: durable Android notification capture
+Date: 2026-11-26
+Branch: feature/ca-evidence-ledger ONLY
+Version: 1.1.0-dev.4+10; database schema 8
+
+Scope and branch isolation
+NotificationListenerService -> encrypted native inbox -> WorkManager -> existing
+deterministic ingestion -> SQLCipher commit -> acknowledge/delete queued copy.
+No changes were made to main, the Android investigation or iOS worktrees.
+Claude's startup fix b52b7fe was inspected read-only. Its two release settings
+(minification/resource shrinking disabled) were applied to this branch only.
+No published release/download asset is replaced by this milestone.
+
+Capture and privacy
+Settings > Notification capture explains Android access before offering the
+system permission screen. Capture defaults OFF and requires explicit selection
+of at least one app. Initial selectable apps are Google Pay, PhonePe, Paytm,
+HDFC, ICICI, SBI YONO, Axis and Kotak (package IDs in notificationApps).
+Notification access is broad at the OS level; unselected apps are filtered
+before storage. The app's own package is rejected by production configuration.
+No QUERY_ALL_PACKAGES permission or server queue is introduced. Supported app
+packages do not guarantee every notification format can be parsed.
+
+The listener commits each selected app's title/body (including expanded text)
+before scheduling any Dart work. It does not depend on an ephemeral platform
+channel event to preserve the original. Notification identity includes package,
+notification key, notification time and full text. Duplicate delivery/update
+replays reuse the identity; genuinely distinct times/content remain separate.
+Group summaries are skipped to avoid duplicating their child notifications.
+Empty text is skipped; oversized (>64 KiB UTF-8) input is refused without
+truncation and sets a visible capture error. Storage errors never silently evict
+old records. Missed alerts may need reconciliation through bank CSV imports.
+
+Native persistence
+notification-inbox-v1.sqlite lives in Android noBackupFilesDir. SQLite persists
+only event hashes, authenticated ciphertext and pending/quarantine state.
+Plaintext titles, amounts, package names or bodies are not stored in queue
+columns, journals, WorkManager input Data, logs or SharedPreferences.
+Each payload uses AES-256-GCM with a random IV and event ID as associated data.
+The key is generated/stored by AndroidKeyStore and never exported. A missing
+key with existing queued evidence is never replaced. Authentication failures
+quarantine the encrypted bytes, keep them intact and allow other records to
+proceed. Explicit retry attempts them again; it does not reset encryption keys.
+Settings store only consent/app IDs, timestamps and generic error flags.
+
+Background processing and recovery
+Unique WorkManager requests process bounded 20-record batches offline, with
+retry/backoff for failed imports. A periodic 15-minute recovery request plus
+listener reconnection and app startup recover scheduling gaps. Android controls
+actual scheduling time; the interval is not an instant-delivery guarantee.
+When Flutter's UI engine is ready, it consumes using its existing database.
+With the Activity destroyed, the worker starts a headless Flutter engine at the
+retained notificationWorkerMain entrypoint. Only storage/JNI context plugins are
+registered there; no AI, preferences or screen plugin is initialized. The older
+preferences dependency has a process-global registrar, so registering it in a
+second engine could otherwise break a simultaneously opening foreground app.
+The foreground startup waits for an already-running headless worker to finish
+before opening settings/database, preventing simultaneous key creation/migration.
+The headless path requires an existing encrypted ledger and existing valid key;
+it never creates a new ledger/key or migrates a plaintext install in background.
+Enabling capture first initializes the foreground encrypted database.
+
+Only one native consumer runs at a time. Its gate is released even if shutdown
+is interrupted. The Dart batch is fully validated before any write, ingested in
+one transaction, and acknowledged only after commit (and DB close headlessly).
+Death between commit and acknowledgement safely replays the same source IDs.
+Deletion tombstones and user edits are preserved. SMS/notification evidence
+with a common bank reference can merge through the existing deduplication rules.
+Without a common reference, notification-based similarity is capped below the
+automatic merge threshold, so same-value payments are flagged rather than lost.
+Unparseable/OTP/promotional alerts retain their explicit encrypted-ledger outcome;
+acknowledgement does not claim that every alert created a financial transaction.
+The app lock is not unlocked or bypassed to display any capture result.
+
+Ledger and CA handoff
+SourceKind.notification was appended at enum index 5; existing source indices
+are unchanged. Schema 8 marks this compatibility change without destructive DDL,
+so older apps reject newer backups instead of misreading a source enum. New
+ledger-only backup/restore preserves these raw source IDs and outcomes.
+The notification log exposes parsed/merged/ignored/unreadable buckets.
+Monthly CA ZIPs additionally include notification_sources.csv: source IDs,
+package, payment link, timestamp, outcome and text SHA-256, without raw bodies.
+Existing manifest hashing covers this file automatically.
+
+Status and controls
+The screen distinguishes app opt-in from OS notification-access permission,
+refreshes on resume, reports queued/quarantined counts and last processed batch,
+and provides retry plus access to parser outcomes. Disabling capture preserves
+already queued records and ledger evidence. Amber review notices explain
+interruption/missing evidence; no notification is labelled tax-approved.
+
+Verification (final emulator results recorded below when complete)
+382 Flutter tests passed, including 8 new ingestion/provenance/rollback/replay
+tests and 5 widget flows. Tests cover exact paise, malformed batch rejection,
+atomic rollback, SMS deduplication, deletion tombstones, ignored/unreadable
+outcomes, backup source compatibility and CA notification receipt hashes.
+Widget checks cover opt-in selection, missing permission, failed changes,
+non-Android handling and 320px/150% light/dark layouts. Phone renders inspected.
+8 native Robolectric tests passed: encrypted persistence/reopen, duplicate
+delivery, acknowledgement, tampering/quarantine, wrong-key preservation,
+row-swap authentication, size refusal, consent filtering and interrupted gate
+cleanup and malformed-notification handling (some scenarios combined in tests).
+Static analysis: no errors or warnings; 60 Material import deprecation infos.
+Local Android instrumentation compilation and arm64 release build passed.
+2 Python architecture-check tests passed. Debug checks require the JIT kernel;
+release checks require an AOT app library for every advertised ABI. Targeted
+builds now filter third-party native AARs to exactly the requested Flutter ABIs,
+preventing a single-ABI APK from advertising other incomplete architectures.
+The isolated GitHub emulator test uses a disposable CI signing identity,
+not the persistent public-release key. It grants notification access, posts
+a synthetic alert through Android's actual notification service with no Activity,
+verifies the encrypted queue, runs the release-mode headless consumer, checks
+acknowledgement and confirms that the ledger is not plaintext SQLite.
+Android 11/API 30 and Android 15/API 35 runtime results: pending.
+
+Files
+android/app/src/main/kotlin/com/kankoo/kankoo/BankNotificationListener.kt
+android/app/src/main/kotlin/com/kankoo/kankoo/NotificationInbox.kt
+android/app/src/main/kotlin/com/kankoo/kankoo/NotificationWork.kt
+android/app/src/main/kotlin/com/kankoo/kankoo/NotificationBridge.kt
+android/app/src/main/kotlin/com/kankoo/kankoo/MainActivity.kt
+android/app/src/main/AndroidManifest.xml
+android/app/build.gradle.kts
+android/gradle.properties
+android/app/src/test/kotlin/com/kankoo/kankoo/NotificationInboxTest.kt
+android/app/src/androidTest/kotlin/com/kankoo/kankoo/NotificationBackgroundTest.kt
+lib/ingestion/notifications/notification_intake.dart
+lib/ingestion/dedup/dedup_engine.dart
+lib/features/settings/notification_capture_screen.dart
+lib/features/settings/messages_screen.dart
+lib/features/settings/settings_screen.dart
+lib/features/activity/transaction_sheet.dart
+lib/features/reconciliation/reconciliation_widgets.dart
+lib/exports/ca_bundle.dart
+lib/data/db/database.dart
+lib/data/db/db_encryption.dart
+lib/data/db/tables.dart
+lib/app.dart; lib/main.dart; pubspec.yaml; .gitignore
+test/notification_intake_test.dart; test/notification_capture_screen_test.dart
+test/ca_bundle_test.dart; test/currency_db_test.dart; test/reconciliation_service_test.dart
+.github/workflows/build-apk.yml (emulator job restricted to this branch)
+tool/verify_apk_architectures.py; tool/test_verify_apk_architectures.py
+
+Remaining before a public launch
+No physical-phone/OEM/pilot validation is claimed. Force-stop, denied/revoked
+access, work-profile restrictions, hidden notification content, battery policies,
+app format changes, storage exhaustion and unavailable Keystore keys can delay
+or prevent capture. A bank statement remains the reconciliation source of truth.
+Android 11+ is still required by the existing on-device model dependency.
+Complete encrypted database-plus-PDF backup/restore, Pro billing, real founder/CA
+pilot acceptance, and signed production update testing remain separate work.
+This milestone neither implements those items nor declares production readiness.

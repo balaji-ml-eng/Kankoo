@@ -115,7 +115,11 @@ class DedupEngine {
 
     if (c.sourceKeys.contains(sourceKey)) s -= 0.35;
 
-    return s.clamp(0.0, 1.0);
+    // Notification updates can repeat an amount/merchant; require a shared bank
+    // reference (handled above) before silently merging this source's evidence.
+    final notification =
+        _channel(sourceKey) == 'notification' || c.sourceKeys.any((key) => _channel(key) == 'notification');
+    return s.clamp(0.0, notification ? autoMerge - 0.01 : 1.0);
   }
 
   static bool _sameRef(String a, String b) {
@@ -125,7 +129,7 @@ class DedupEngine {
     return (x.length >= 10 && y.contains(x)) || (y.length >= 10 && x.contains(y));
   }
 
-  static const _channels = {'sms', 'email', 'notification'};
+  static const _channels = {'sms', 'email'};
   static String _channel(String key) => key.split(':').first;
 
   static bool _crossChannel(String sourceKey, Set<String> existing) {

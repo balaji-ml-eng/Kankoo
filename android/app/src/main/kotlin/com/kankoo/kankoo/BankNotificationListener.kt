@@ -19,13 +19,13 @@ class BankNotificationListener : NotificationListenerService() {
         if (!prefs.getBoolean("enabled", false) ||
             !prefs.getStringSet("packages", emptySet())!!.contains(sbn.packageName)) return
         if ((sbn.notification.flags and Notification.FLAG_GROUP_SUMMARY) != 0) return
-        val extras = sbn.notification.extras
-        val body = extras.getCharSequence(Notification.EXTRA_BIG_TEXT)?.toString()
-            ?: extras.getCharSequence(Notification.EXTRA_TEXT)?.toString().orEmpty()
-        val title = extras.getCharSequence(Notification.EXTRA_TITLE)?.toString().orEmpty()
-        val text = listOf(title, body).filter { it.isNotBlank() }.distinct().joinToString("\n")
-        if (text.isBlank()) return
         try {
+            val extras = sbn.notification.extras
+            val body = extras.getCharSequence(Notification.EXTRA_BIG_TEXT)?.toString()
+                ?: extras.getCharSequence(Notification.EXTRA_TEXT)?.toString().orEmpty()
+            val title = extras.getCharSequence(Notification.EXTRA_TITLE)?.toString().orEmpty()
+            val text = listOf(title, body).filter { it.isNotBlank() }.distinct().joinToString("\n")
+            if (text.isBlank()) return
             // Commit encrypted evidence BEFORE enqueueing work or returning from this callback.
             NotificationInbox(this).use {
                 it.append(sbn.packageName, sbn.key, sbn.notification.`when`.takeIf { t -> t > 0 } ?: sbn.postTime, text)

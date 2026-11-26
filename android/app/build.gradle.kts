@@ -40,6 +40,23 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
         applicationId = "com.kankoo.kankoo"
+        // Third-party native AARs can advertise ABIs absent from a targeted
+        // Flutter build. Package only complete ABIs; split APKs set their own.
+        if (project.findProperty("split-per-abi")?.toString() != "true") {
+            val platforms = project.findProperty("target-platform")?.toString()
+                ?: "android-arm,android-arm64,android-x64"
+            ndk {
+                abiFilters.clear()
+                abiFilters.addAll(platforms.split(",").map {
+                    when (it) {
+                        "android-arm" -> "armeabi-v7a"
+                        "android-arm64" -> "arm64-v8a"
+                        "android-x64" -> "x86_64"
+                        else -> error("Unsupported Android target: $it")
+                    }
+                })
+            }
+        }
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         // LiteRT-LM (on-device models) needs Android 11+.
@@ -89,6 +106,7 @@ dependencies {
     implementation("androidx.work:work-runtime:2.11.0")
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.robolectric:robolectric:4.16.1")
+    testImplementation("androidx.work:work-testing:2.11.0")
     androidTestImplementation("androidx.test:runner:1.6.2")
     androidTestImplementation("androidx.test:core-ktx:1.6.1")
     androidTestImplementation("androidx.test.ext:junit:1.2.1")

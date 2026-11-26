@@ -134,6 +134,24 @@ void main() {
       await restored.close();
     }
   });
+  test('same-value notification without bank reference is flagged instead of silently merging payments', () async {
+    const text = 'Sent Rs.250.01 From HDFC Bank A/C *4521 To AWS On 26/11/26';
+    await ingestion.ingest([
+      RawInput(
+        source: SourceKind.sms,
+        externalId: 'sms-no-ref',
+        sender: 'VM-HDFCBK',
+        body: text,
+        receivedAt: DateTime(2026, 11, 26, 12),
+      ),
+    ]);
+    await consumeNotifications(db, ingestion, batch([notificationRecord(1, text: text)]));
+    final payments = await db.select(db.transactions).get();
+    expect(payments, hasLength(2));
+    expect(payments.last.status, TxnStatus.needsReview);
+    expect(payments.last.duplicateOfId, payments.first.id);
+    expect(payments.every((p) => !p.isTransfer), isTrue);
+  });
   test(
     'CA bundle includes notification receipt hashes and unreadable outcomes without raw notification text',
     () async {
