@@ -1,0 +1,97 @@
+Kankoo 1.0.3 startup and APK architecture hotfix investigation
+25 November 2026
+
+User symptom: the previous APK installs, but stays on the splash/logo screen.
+Milestone 1A/1B work is held. This folder is an isolated copy of published source
+commit 10a84eff1cf90522109f460b356c88ce14cb31c8, with only the startup hotfix.
+The investigation preserved the original development work. Publication is maintained
+on main, with the new CA plan isolated on feature/ca-evidence-ledger.
+
+Verified original artifact
+File: ../kankoo-1.0.2-arm64.apk
+Package: com.kankoo.kankoo
+Version: 1.0.2, Android version code 4; Android 11+.
+SHA-256: 20a55cd03ed14bea9ed85f4e83b34e6fa2a448befa980eb17610dc6b82bb5a16
+Public signer SHA-256:
+90f24c186e415e09fdcfec77cc33bac16c39d800ec50abfd86de6f62be2bc930
+APK signature verification and 16 KB native-library ZIP alignment check passed.
+Architecture validation FAILED: the APK contains helper libraries under
+armeabi-v7a and x86_64, so Android advertises those ABIs, but neither includes
+libflutter.so, libapp.so or libsqlcipher.so. Only arm64-v8a is complete. Thus a
+32-bit ARM or x86_64 device can install an APK that cannot load its Flutter app.
+The original ARM64 filename did not prevent this packaging defect.
+The hotfix is built as a universal release with all three core ABI sets, rather
+than building ARM64 Flutter code into an APK that still contains other ABIs.
+
+Confirmed source problem; device-specific cause not yet confirmed
+The published main() waits for SharedPreferences.getInstance(), then awaits
+FlutterEdgeAi.initialize() and FileDownloader.cancelAll(), before calling runApp().
+The optional AI/download waits had no timeout. Catching an exception does not
+handle a future that never completes. That code path can leave Android's native
+splash visible forever because Flutter has not rendered its first frame.
+Both issues can cause startup failure. No physical device is connected to adb
+here, so the exact cause on the user's phone is not yet proven. Its CPU ABI and
+a device startup log are required if the corrected universal APK still sticks.
+
+Changes
+lib/main.dart: calls runApp immediately, before any asynchronous plugin wait.
+lib/core/startup_gate.dart: paints an opening screen while saved settings load;
+after 10 seconds a failed/stalled settings load shows Retry instead of staying on
+the native splash. It never substitutes empty preferences or bypasses app lock.
+The real app is mounted only with its existing saved settings. Optional services
+start after the app's ready frame, and cannot gate first paint or normal taps.
+lib/llm/on_device/on_device_initialization.dart: shares one AI initialization
+future between startup/settings/clients, with a 15-second caller timeout. A late
+native future is retained so retries cannot start competing initializations.
+lib/llm/on_device/on_device_client.dart: waits for that shared initialization;
+attaches lifecycle cleanup when an AI model is actually loaded, including after
+a delayed initialization. Cloud AI behavior is unchanged.
+lib/llm/on_device/on_device_models.dart: bounds orphan download cleanup to five
+seconds and waits for AI readiness when refreshing the model screen.
+test/startup_gate_test.dart: regression tests for hung optional services, their
+failures, hung critical settings, safe retry and late completion after disposal.
+tool/verify_apk_architectures.py: rejects an APK if ANY advertised native ABI lacks
+its Flutter engine, compiled app or SQLCipher. It reproduces the old APK failure.
+Build command: flutter build apk --release --no-pub (default complete ABI set).
+.github/workflows/build-apk.yml: builds a complete debug APK and runs the same
+architecture check before publishing its CI artifact. Signed releases still use
+the protected release key and are not replaced by CI debug artifacts.
+pubspec.yaml: 1.0.3+7, a version code higher than the published APK.
+
+There are no database schema, transaction parser, invoice, milestone, key storage
+or authentication-policy changes. This hotfix remains on the released schema 4.
+It does not delete preferences, replace encryption keys or reset app data.
+
+Validation
+Full released-app regression suite: 287 tests passed (282 existing + 5 startup).
+Final startup/on-device client/runtime checks: 30 tests passed.
+Static analysis: no errors or warnings; 47 informational Material import
+deprecations. Release/minified arm64 APK build passed.
+The initial ARM64-only candidate repeated the ABI mismatch and was rejected and
+removed before handoff. Final universal APK details are recorded after packaging.
+Final artifact: ../kankoo-1.0.3-startup-fix.apk (127,255,972 bytes; about 121 MB).
+Package/version: com.kankoo.kankoo, 1.0.3, Android version code 7 (old code: 4).
+SHA-256: 038fefe0cd6d28722b77710cc418dcc3141f0a6fea627ca053267c507e98b335
+Architecture validation PASSED for arm64-v8a, armeabi-v7a and x86_64: every
+advertised ABI contains its Flutter engine, compiled app and SQLCipher library.
+APK signature verified (v2); public signer exactly matches the original 1.0.2 APK.
+16 KB ZIP alignment passed. Temporary private signing copies were removed after
+packaging; the original protected signing files were retained.
+
+Phone verification
+The corrected APK is intended to update the signed 1.0.2 installation in place.
+Do not uninstall or clear storage: that would remove local data/device-bound keys.
+If it reaches 'Opening Kankoo' or the settings Retry screen, Dart/Flutter first
+paint is working; the native splash has been passed. If it still shows only the
+Android splash/logo, capture startup logcat to investigate native engine/renderer
+or phone-specific startup failure. The app emits only startup stage markers and
+error types under [kankoo-startup], without settings or transaction contents.
+Physical testing on the user's phone remains pending. The publishing target is
+GitHub tag v1.0.3-test, from main, with the universal signed APK described above.
+
+Development handoff
+Carry these common startup/build changes into the separate new-plan branch before
+its next phone release. This main-branch hotfix contains none of the 1A/1B features.
+Its next public version code must be greater than 7, and its APK must pass the
+architecture validator. Do not repeat an ARM64-only compile inside an APK that
+advertises unbuilt ABIs; use a complete universal APK or correctly filtered splits.

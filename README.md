@@ -83,17 +83,21 @@ the device and has nothing to sell you.
 > with sample messages, and avoid connecting personal email or cloud AI accounts during initial testing.
 > Real-device import, app-lock and update testing is still pending.
 
-You need Android 11 or newer on a 64-bit ARM phone. There is no finished release yet.
+You need Android 11 or newer. The universal APK includes complete ARM64, 32-bit ARM and x86_64
+libraries. On-device AI models require a supported 64-bit ARM phone.
 
-**[⬇ Download Kankoo 1.0.2 (build 4)](https://github.com/balaji-ml-eng/Kankoo/releases/download/v1.0.2-test/kankoo-1.0.2-arm64.apk)**
+**[⬇ Download Kankoo 1.0.3 (build 7) — startup hotfix](https://github.com/balaji-ml-eng/Kankoo/releases/download/v1.0.3-test/kankoo-1.0.3-startup-fix.apk)**
 (no GitHub sign-in needed)
 
-This is a signed, non-debuggable release-mode APK. All **282 automated tests** pass. It fixes the
-landing-page SMS permission flow and the reviewed data-preservation, encryption and import issues.
+This is a signed, non-debuggable release-mode APK. **287 automated tests** pass. It fixes an
+unbounded startup wait and incomplete CPU-architecture packaging found in 1.0.2, while retaining
+the earlier SMS permission, data-preservation, encryption and import fixes.
 
-**Updating from the old debug build:** export any data you need first. This APK uses a new persistent
-release signing key and cannot install over the old debug-signed app. Removing the old app deletes its
-data; restore your exported backup after installing this build. Future releases will keep this key.
+**Updating from 1.0.2:** install this APK over the existing app. Its signing certificate matches.
+Do not uninstall or clear app storage; that would remove local data and device-bound keys.
+
+**Updating from a legacy debug build:** the debug signature differs from the persistent release key.
+Export your data before changing that installation. Uninstalling deletes local data.
 
 1. Download the APK on your Android phone.
 2. Open it. If asked, allow your browser or file app to install unknown apps, and turn that
@@ -101,6 +105,17 @@ data; restore your exported backup after installing this build. Future releases 
 3. Tap **Install**.
 
 Uninstalling the app deletes its saved data. Keep a backup before changing installations.
+
+### Separate development branches
+
+| Branch | Purpose |
+| --- | --- |
+| [`main`](https://github.com/balaji-ml-eng/Kankoo/tree/main) | Source for the published 1.0.3 startup hotfix; database schema 4. |
+| [`feature/ca-evidence-ledger`](https://github.com/balaji-ml-eng/Kankoo/tree/feature/ca-evidence-ledger) | Unreleased new CA evidence plan, Milestones 1A and 1B; database schema 6. |
+
+The published APK comes from `main`. New-plan features stay on the development branch.
+Common startup/build safeguards are carried forward into development. CA export work (1C) remains pending.
+See [startup investigation and checks](STARTUP_HOTFIX.txt) for the APK validation and physical-phone testing limits.
 
 ### Test checklist
 
