@@ -1,0 +1,45 @@
+name: Published APK runtime probe
+
+on:
+  push:
+    branches: [fix/android-startup-runtime]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  published-apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        api: [30, 35]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download exact published APK
+        run: |
+          curl --fail --location --retry 3 'https://github.com/balaji-ml-eng/Kankoo/releases/download/v1.0.3-test/kankoo-1.0.3-startup-fix.apk' -o published.apk
+          echo '038fefe0cd6d28722b77710cc418dcc3141f0a6fea627ca053267c507e98b335  published.apk' | sha256sum --check
+      - name: Enable emulator acceleration
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Run published release on Android
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: ${{ matrix.api }}
+          arch: x86_64
+          target: google_apis
+          profile: pixel_2
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -camera-back none
+          script: python3 tool/probe_android_startup.py published.apk
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: published-apk-android-${{ matrix.api }}
+          path: runtime-probe/
+          retention-days: 7
