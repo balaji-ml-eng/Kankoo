@@ -7,6 +7,7 @@ import 'package:flutter_edge_ai/flutter_edge_ai.dart';
 import '../llm_client.dart';
 import 'model_catalog.dart';
 import 'on_device_scheduler.dart';
+import 'on_device_initialization.dart';
 
 void onDeviceLog(String message) => debugPrint('[kankoo-ondevice] $message');
 
@@ -74,6 +75,8 @@ class OnDeviceClient implements LlmClient, LlmBudget, LlmStreamingClient {
   /// caches the built model per spec + parameters, so with the same
   /// arguments this returns the already-loaded instance.
   Future<InferenceModel> load() async {
+    await ensureOnDeviceInitialized();
+    runtime.attach();
     final active = FlutterEdgeAi.activeModelSpec?.name;
     if (active == null || !model.file.startsWith(active)) {
       if (!await FlutterEdgeAi.isModelInstalled(model.file)) throw NoActiveModelError('${model.name} not installed');
@@ -92,6 +95,7 @@ class OnDeviceClient implements LlmClient, LlmBudget, LlmStreamingClient {
 
   @override
   Future<List<String>> listModels() async {
+    await ensureOnDeviceInitialized();
     final installed = await FlutterEdgeAi.listInstalledModels();
     return [
       for (final m in ModelCatalog.all)

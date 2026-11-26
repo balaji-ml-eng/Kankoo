@@ -3,7 +3,11 @@ Kankoo - Milestone 1B implementation review
 
 Scope
 Implemented Master Execution Brief v4, Milestone 1B, on top of the local 1A work.
-Development version: 1.1.0-dev.2+6. Database schema: 6.
+Milestone completed as 1.1.0-dev.2+6. Database schema: 6.
+Maintenance update, 26 November 2026: kept on feature/ca-evidence-ledger. Current
+development version is 1.1.0-dev.2+8, above the separate 1.0.3 hotfix's build 7.
+The branch inherits the common startup/ABI-build safeguards from main. The new
+CA features remain outside main and its public APK. Milestone 1C remains on hold.
 The published v1.0.2-test release, main branch and release signing files were not
 replaced or published as part of this milestone. No new dependency was needed.
 

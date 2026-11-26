@@ -37,7 +37,10 @@ jobs:
 
       - name: Build debug APK
         shell: bash
-        run: flutter build apk --debug --target-platform android-arm64 2>&1 | tee build.log
+        run: flutter build apk --debug 2>&1 | tee build.log
+
+      - name: Verify APK architectures
+        run: python3 tool/verify_apk_architectures.py build/app/outputs/flutter-apk/app-debug.apk
 
       # Annotations can be read without the full log, so publish the key lines.
       - name: Report build error

@@ -11,6 +11,7 @@ import '../llm_providers.dart';
 import 'device_profile.dart';
 import 'model_catalog.dart';
 import 'on_device_client.dart';
+import 'on_device_initialization.dart';
 
 class OnDeviceState {
   const OnDeviceState({
@@ -85,7 +86,7 @@ class OnDeviceModels extends Notifier<OnDeviceState> {
 
   static Future<void> _cancelStrayDownloads() async {
     try {
-      await FileDownloader().cancelAll(group: _downloadGroup);
+      await FileDownloader().cancelAll(group: _downloadGroup).timeout(const Duration(seconds: 5));
     } catch (e) {
       debugPrint('cancel stray downloads: $e');
     }
@@ -96,6 +97,7 @@ class OnDeviceModels extends Notifier<OnDeviceState> {
 
   Future<void> refresh() async {
     try {
+      await ensureOnDeviceInitialized();
       final profile = await DeviceProfile.read();
       final token = await ref.read(secretStoreProvider).read(tokenKey);
       final hasToken = token != null && token.isNotEmpty;
