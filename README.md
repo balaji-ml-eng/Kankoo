@@ -86,7 +86,11 @@ the device and has nothing to sell you.
 You need Android 11 or newer. The universal APK includes complete ARM64, 32-bit ARM and x86_64
 libraries. On-device AI models require a supported 64-bit ARM phone.
 
-**[⬇ Download Kankoo 1.0.3 (build 7) — startup hotfix](https://github.com/balaji-ml-eng/Kankoo/releases/download/v1.0.3-test/kankoo-1.0.3-startup-fix.apk)**
+> **Known problem:** the published 1.0.3 APK stays on the logo or opening screen because saved
+> settings fail to load in its release build. Version 1.0.4 in this source turns R8 shrinking off to
+> fix this. Its APK is not published yet.
+
+[Old 1.0.3 APK (does not work)](https://github.com/balaji-ml-eng/Kankoo/releases/download/v1.0.3-test/kankoo-1.0.3-startup-fix.apk)
 (no GitHub sign-in needed)
 
 This is a signed, non-debuggable release-mode APK. **287 automated tests** pass. It fixes an

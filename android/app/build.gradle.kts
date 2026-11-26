@@ -65,8 +65,10 @@ android {
     buildTypes {
         release {
             signingConfig = if (hasReleaseKey) signingConfigs.getByName("release") else null
-            isMinifyEnabled = true
-            isShrinkResources = true
+            // R8 is off: with it on, release builds fail to load SharedPreferences
+            // (PlatformException) and the app never gets past startup.
+            isMinifyEnabled = false
+            isShrinkResources = false
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }
     }
