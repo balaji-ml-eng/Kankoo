@@ -1,0 +1,114 @@
+KANKOO: IPHONE SHORTCUTS FORWARDING
+Branch: feature/ios-support. Based on stable Android main, separate from the
+CA evidence plan in feature/ca-evidence-ledger. Minimum iOS version: 17.0.
+
+WHAT IS IMPLEMENTED
+Apple's native App Intent, "Forward bank message", accepts message text and
+an optional sender. It saves new input to an AES-256-GCM encrypted inbox in
+the app sandbox. It does not read the Messages inbox or return ledger data.
+Forwarding is off until the user enables it in Kankoo's iPhone Shortcuts
+settings. No webhook, account or forwarding server is required.
+
+The foreground app imports pending records only after onboarding and any
+enabled app lock are satisfied. Acknowledgement deletes a native record only
+after the ledger/raw-message commit succeeds. Stable event IDs make a retry
+after commit-before-ack safe. Unparsed/ignored messages remain in the ledger's
+message history. Parser classification is not a guarantee every bank format
+will parse; review Activity and messages for your bank.
+Open Settings > iPhone Shortcuts > Review forwarded message log to see parsed,
+merged, ignored, unreadable and failed records from the forwarding source.
+
+Inbox keys use Keychain AfterFirstUnlockThisDeviceOnly. Ciphertext files are
+excluded from device backups and use CompleteUntilFirstUserAuthentication
+file protection. A lost/unavailable key or damaged file is preserved, never
+silently reset. The inbox holds 500 events, 32 KB of UTF-8 text per event and
+512 bytes per sender; overflow fails visibly in Shortcuts. Import pending
+messages before backing up Kankoo: pending native files are intentionally not
+part of its ledger backup and will not transfer to a replacement device.
+
+SETUP ON AN IPHONE WITH A SIGNED KANKOO BUILD
+1. Open/unlock Kankoo, finish onboarding, then enable Allow Shortcuts forwarding
+   in Settings > iPhone Shortcuts. This creates the encrypted inbox key.
+2. Open Apple Shortcuts > Automation > New Automation > Message.
+3. Choose a bank sender or a transaction phrase that matches actual messages.
+   Select Run Immediately when available. Avoid overlapping automations for
+   the same bank message; each new invocation creates a new capture event.
+4. Add Kankoo's "Forward bank message" action. Set Bank message to Shortcut
+   Input and choose its Content detail. Do not pass the Sender/contact object
+   as message text. Sender is optional; choose its Sender detail if available.
+5. First test the action in an ordinary shortcut with a Text action containing
+   a synthetic bank alert. Example:
+   Sent Rs.250.00
+   From HDFC Bank A/C *4521
+   To TEST MERCHANT
+   On <today's date in DD/MM/YY>
+   Ref <a unique 12-digit synthetic number>
+6. Open/unlock Kankoo and verify Activity's exact amount, direction, account,
+   merchant and receipt time. Then test a real Message-trigger automation.
+7. Confirm locked-phone delivery, background delivery and a phone restart on
+   your device. The inbox is unavailable before the first unlock after reboot.
+   A failed action should be retried after unlocking; Apple controls scheduling.
+
+The older kankoo://ingest?text=<URL-encoded text>&sender=<URL-encoded sender>
+method remains a fallback. It opens the app and may require unlocking. Encode
+each value independently; never interpolate raw message text into a URL.
+Native SceneDelegate captures cold and warm links before Flutter routing.
+No text or complete URLs are logged by this forwarding implementation.
+Optional cloud AI can process imported records only under existing AI settings;
+the forwarding action itself does not make a network request.
+
+BUILD AND TEST WITHOUT OWNING A MAC
+GitHub Actions .github/workflows/ios.yml uses a macOS runner and Xcode 26.3
+(connectivity_plus 7.3.2 references an iOS 26 SDK API). The deployment target
+remains iOS 17; compiling with a newer SDK does not require iOS 26 to install.
+The workflow runs native inbox tests, Flutter analysis/tests, an unsigned
+iPhone release build, a simulator build, native simulator XCTest coverage and
+a Flutter integration test of the real bridge, Keychain and SQLCipher ledger.
+Its unsigned IPA can be signed and installed through AltStore Classic for
+initial friend testing; follow IOS_SIDELOAD.txt. Apple signing/provisioning is
+still required, either through the tester's account or for TestFlight/App Store.
+No signing credentials are stored in this branch.
+
+VALIDATION
+https://github.com/balaji-ml-eng/Kankoo/actions/runs/45762984046
+Passed at e1b4dc0: native encrypted-inbox tests, 296 Flutter tests, analysis,
+unsigned arm64 iPhone release build, simulator build, native forwarding-action
+tests using real Keychain, and Flutter bridge-to-SQLCipher integration.
+The final message-log navigation/status UI change was then checked locally:
+all 296 Flutter tests passed; analysis has no errors or warnings. It changes
+no native forwarding, encryption, lifecycle gating or import logic.
+
+PHYSICAL ACCEPTANCE CHECKS STILL REQUIRED BEFORE A PUBLIC IOS RELEASE
+- Discover Kankoo's action after install/update in the actual Shortcuts app.
+- Verify selected bank sender, Content mapping and Run Immediately behavior.
+- Deliver once foreground, background, app terminated and phone locked.
+- Reboot: verify failure before first unlock and successful capture afterward.
+- Enable Kankoo app lock: capture while locked, no ledger import until unlock.
+- Interrupt import; reopen and verify no lost or duplicated ledger record.
+- Check OTP/non-transaction handling and unfamiliar bank formats in messages.
+- Test oldest supported iOS 17 and a current iOS release on real devices.
+Simulator/programmatic AppIntent tests cannot certify SMS-trigger scheduling,
+lock-screen execution, App Store review or a specific bank sender's delivery.
+
+RESEARCH AND DESIGN REFERENCES (2026-11-26)
+Apple: no API for an app to read the complete Messages inbox:
+https://developer.apple.com/forums/thread/848299
+Apple Message automation triggers and sender/content filters:
+https://support.apple.com/en-il/guide/shortcuts/apdd711f9dff/ios
+Apple automation confirmation controls:
+https://support.apple.com/en-ae/guide/shortcuts/apd602971e63/ios
+Apple IntentAuthenticationPolicy (alwaysAllowed allows invocation while locked;
+this is not a guarantee that a Message automation will be scheduled):
+https://developer.apple.com/documentation/AppIntents/IntentAuthenticationPolicy
+Flutter iOS deployment and signing:
+https://docs.flutter.dev/deployment/ios
+
+Open-source implementation reviewed: Money Made's smsDeepLink.ts,
+useSmsDeepLinks.ts and ShortcutSetupScreen.tsx. It forwards URL-encoded text
+through moneymade://sms and handles both initial and running-app URLs.
+https://github.com/Faydevlop/money-made-sms-expense-tracker
+Another project's documented workflow sends Shortcut text/sender by HTTP to
+n8n; that server architecture does not meet Kankoo's local-first requirement:
+https://github.com/Riskiestelm/Expense-Tracker-N8N
+Neither example proves the native encrypted queue or locked-phone reliability
+implemented here. No code was copied from either project.

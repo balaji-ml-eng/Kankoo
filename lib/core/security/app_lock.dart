@@ -166,7 +166,7 @@ class AppLockController extends Notifier<AppLockState> {
   Future<String?> setEnabled(bool on) async {
     if (on) {
       if (!await _auth.available()) {
-        return 'Set a fingerprint, face, PIN, pattern or password in Android settings first.';
+        return 'Set up your phone’s screen lock or biometrics in system settings first.';
       }
       state = state.copyWith(authenticating: true);
       final outcome = await _auth.authenticate('Confirm to turn on app lock');

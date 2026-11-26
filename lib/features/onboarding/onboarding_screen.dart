@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../core/theme/icons.dart';
 
@@ -46,6 +47,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   @override
   Widget build(BuildContext context) {
     final supported = ref.read(smsSourceProvider).isSupported;
+    final shortcuts = ref.watch(shortcutsInboxProvider).isSupported;
     return Scaffold(
       body: SafeArea(
         child: LayoutBuilder(
@@ -63,8 +65,10 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                     Text('Your money,\ntracked for you.', style: context.text.displaySmall?.copyWith(height: 1.05)),
                     const SizedBox(height: 14),
                     Text(
-                      'Kankoo reads bank, card & UPI alerts, sorts every payment into categories, '
-                      'and never counts the same payment twice. Built India-first; works with 30+ currencies.',
+                      shortcuts
+                          ? 'Forward bank alerts with iPhone Shortcuts or connect email. Kankoo parses the messages you choose and keeps your expense records on this phone.'
+                          : 'Kankoo reads bank, card & UPI alerts, sorts every payment into categories, '
+                                'and checks for duplicate payments. Built India-first; works with 30+ currencies.',
                       style: context.text.bodyLarge?.copyWith(color: context.colors.onSurfaceVariant, height: 1.4),
                     ),
                     const SizedBox(height: 24),
@@ -126,6 +130,18 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                             child: const Text('Open app permissions'),
                           ),
                       ],
+                    ],
+                    if (shortcuts) ...[
+                      FilledButton.icon(
+                        onPressed: () {
+                          ref.read(onboardedProvider.notifier).complete();
+                          context.push('/shortcuts');
+                        },
+                        icon: const Icon(Icons.shortcut),
+                        label: const Text('Set up iPhone Shortcuts'),
+                      ),
+                      const SizedBox(height: 12),
+                      const Text('No Messages inbox permission is requested. You control the forwarding automation.'),
                     ],
                     const SizedBox(height: 4),
                     Center(

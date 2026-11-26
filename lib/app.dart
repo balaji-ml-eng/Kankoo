@@ -19,6 +19,7 @@ import 'features/settings/email_connect_screen.dart';
 import 'features/settings/llm_settings_screen.dart';
 import 'features/settings/messages_screen.dart';
 import 'features/settings/settings_screen.dart';
+import 'features/settings/shortcuts_screen.dart';
 import 'features/shell/home_shell.dart';
 import 'providers.dart';
 
@@ -36,11 +37,17 @@ final _routerProvider = Provider<GoRouter>((ref) {
       GoRoute(path: '/welcome', builder: (_, _) => const OnboardingScreen()),
       GoRoute(
         path: '/messages',
-        builder: (_, s) =>
-            MessagesScreen(source: s.uri.queryParameters['source'] == 'email' ? SourceKind.email : SourceKind.sms),
+        builder: (_, s) => MessagesScreen(
+          source: switch (s.uri.queryParameters['source']) {
+            'email' => SourceKind.email,
+            'shortcut' => SourceKind.shortcut,
+            _ => SourceKind.sms,
+          },
+        ),
       ),
       GoRoute(path: '/email/connect', builder: (_, _) => const EmailConnectScreen()),
       GoRoute(path: '/llm', builder: (_, _) => const LlmSettingsScreen()),
+      GoRoute(path: '/shortcuts', builder: (_, _) => const ShortcutsScreen()),
       GoRoute(path: '/budgets', builder: (_, _) => const BudgetsScreen()),
       GoRoute(path: '/recurring', builder: (_, _) => const RecurringScreen()),
       GoRoute(path: '/settings/accounts', builder: (_, _) => const AccountsScreen()),

@@ -12,15 +12,18 @@ import '../../data/db/database.dart';
 import '../ingestion_service.dart';
 import '../parser/parsed_txn.dart';
 import '../parser/senders.dart';
+import 'shortcuts_inbox.dart';
 
 /// Text handed to Kankoo from outside: the Android share sheet, or a
 /// `kankoo://ingest?text=…&sender=…` link (e.g. from an iOS Shortcuts
 /// automation).
 class SharedText {
-  const SharedText({required this.text, this.sender, this.via = 'share'});
+  const SharedText({required this.text, this.sender, this.via = 'share', this.nativeId, this.receivedAt});
 
   final String text;
   final String? sender;
+  final String? nativeId;
+  final DateTime? receivedAt;
 
   /// "share" or "link" — informational only.
   final String via;
@@ -45,10 +48,12 @@ class SharedText {
     final resolved = s != null && s.isNotEmpty ? s : (guess == null ? 'Shared' : 'SHARED-$guess');
     return RawInput(
       source: SourceKind.shortcut,
-      externalId: 'share-${sha1.convert(utf8.encode('${resolved.toUpperCase()}\n$body')).toString().substring(0, 20)}',
+      externalId: nativeId == null
+          ? 'share-${sha1.convert(utf8.encode('${resolved.toUpperCase()}\n$body')).toString().substring(0, 20)}'
+          : 'ios-$nativeId',
       sender: resolved,
       body: body,
-      receivedAt: now,
+      receivedAt: receivedAt ?? now,
     );
   }
 }
@@ -90,12 +95,18 @@ Future<ShareOutcome> ingestShared(IngestionService svc, SharedText shared, {Date
 /// * iOS: Flutter's deep linking delivers kankoo:// URLs as route pushes, which
 ///   this observer claims before the router sees them.
 class IncomingShares with WidgetsBindingObserver {
-  IncomingShares._();
+  IncomingShares._() : _inbox = const ShortcutsInbox();
+  @visibleForTesting
+  IncomingShares.testing(this._inbox);
   static final instance = IncomingShares._();
+  final ShortcutsInbox _inbox;
 
   static const _channel = MethodChannel('kankoo/share');
 
   final _queue = <SharedText>[];
+  final _nativeIds = <String>{};
+  String? lastNativeError;
+  int unreadableNativeCount = 0;
   final _controller = StreamController<void>.broadcast();
   bool _started = false;
 
@@ -113,6 +124,11 @@ class IncomingShares with WidgetsBindingObserver {
       });
       unawaited(_pull());
     }
+    if (_inbox.isSupported) {
+      ShortcutsInbox.channel.setMethodCallHandler((call) async {
+        if (call.method == 'pending') _controller.add(null);
+      });
+    }
   }
 
   List<SharedText> drain() {
@@ -122,6 +138,43 @@ class IncomingShares with WidgetsBindingObserver {
   }
 
   bool get hasPending => _queue.isNotEmpty;
+  SharedText takeNext() => _queue.removeAt(0);
+
+  Future<void> refreshNative() async {
+    if (!_inbox.isSupported) return;
+    final batch = await _inbox.pending();
+    unreadableNativeCount = batch.unreadableCount;
+    lastNativeError = null;
+    for (final event in batch.items) {
+      if (_nativeIds.add(event.id)) {
+        _queue.add(
+          SharedText(
+            text: event.text,
+            sender: event.sender,
+            via: 'ios-shortcut',
+            nativeId: event.id,
+            receivedAt: event.receivedAt,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> acknowledge(SharedText shared) async {
+    final id = shared.nativeId;
+    if (id == null) return;
+    await _inbox.acknowledge(id);
+    _nativeIds.remove(id);
+  }
+
+  void retryLater(SharedText shared) {
+    if (shared.nativeId != null) _nativeIds.remove(shared.nativeId);
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) scheduleMicrotask(() => _controller.add(null));
+  }
 
   void add(SharedText s) {
     _queue.add(s);
@@ -147,6 +200,15 @@ class IncomingShares with WidgetsBindingObserver {
   Future<bool> didPushRouteInformation(RouteInformation routeInformation) async {
     final s = SharedText.fromUri(routeInformation.uri);
     if (s == null) return false;
+    if (_inbox.isSupported) {
+      try {
+        await _inbox.enqueueLegacy(s.text, s.sender);
+      } catch (_) {
+        lastNativeError = 'The forwarded message could not be saved. Open iPhone Shortcuts in Settings and retry.';
+      }
+      _controller.add(null);
+      return true;
+    }
     add(s);
     return true;
   }
