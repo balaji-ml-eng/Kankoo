@@ -68,7 +68,6 @@ class ShortcutsInbox {
 
   Future<void> acknowledge(String id) =>
       channel.invokeMethod<void>('acknowledge', id).timeout(const Duration(seconds: 5));
-  Future<void> enqueueLegacy(String text, String? sender) => channel
-      .invokeMethod<void>('enqueue', {'text': text, if (sender != null) 'sender': sender})
-      .timeout(const Duration(seconds: 5));
+  Future<void> enqueueLegacy(String text, String? sender) =>
+      channel.invokeMethod<void>('enqueue', {'text': text, 'sender': ?sender}).timeout(const Duration(seconds: 5));
 }

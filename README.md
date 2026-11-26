@@ -7,6 +7,8 @@
 > replaced the app icon, added a Kankoo logo to this README, and removed the original's download links, screenshots and promo video.
 > Also modified on 2026-11-25: fixed the SMS onboarding flow, authentication and encryption failure handling,
 > data preservation, imports, backups, transfer detection, Activity history, AI validation and release signing.
+> Modified on 2026-11-26 on the isolated iOS branch: added a native Shortcuts forwarding action,
+> encrypted pending inbox, iPhone setup screens and macOS build/simulator checks.
 
 Kankoo reads the bank, card and UPI alerts already arriving on your phone by SMS and email, turns them
 into transactions, merges the copies, and sorts each one into a category. You don't type anything
@@ -15,6 +17,19 @@ own LLM (cloud or on-device); Kankoo has no server and no account.
 
 Built for India first (Indian bank SMS formats, UPI references and VPAs, NACH/IMPS/NEFT, lakh/crore
 grouping), and works with 30+ currencies: pick your home currency, and spends abroad keep theirs.
+
+## iPhone Shortcuts (development branch)
+
+`feature/ios-support` adds an iOS 17+ native **Forward bank message** action,
+an encrypted pending inbox, and setup in Settings > iPhone Shortcuts. iPhone
+apps cannot read the Messages inbox: the user creates a Message automation
+and passes its Content into Kankoo's action. Open and unlock Kankoo to import.
+See [setup, build instructions and physical-device checks](IOS_SHORTCUTS.txt).
+
+This branch is separate from the Android release and `feature/ca-evidence-ledger`.
+GitHub macOS checks build unsigned iPhone and simulator apps; Apple signing is
+required before installing on a real iPhone or distributing through TestFlight.
+Real Message triggers and locked-phone delivery still require device testing.
 
 ## The idea
 

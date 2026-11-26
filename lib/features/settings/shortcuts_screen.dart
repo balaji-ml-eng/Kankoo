@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../ingestion/share/shortcuts_inbox.dart';
+import '../../ingestion/share/share_intake.dart';
 import '../../providers.dart';
 
 class ShortcutsScreen extends ConsumerStatefulWidget {
@@ -32,14 +33,16 @@ class _ShortcutsScreenState extends ConsumerState<ShortcutsScreen> {
     if (!ref.read(shortcutsInboxProvider).isSupported) return;
     try {
       final status = await ref.read(shortcutsInboxProvider).status();
-      if (mounted)
-        setState(() {
-          _status = status;
-          _error = status.lastError;
-        });
+      if (!mounted) return;
+      final outcome = ref.read(shareIntakeProvider);
+      setState(() {
+        _status = status;
+        _error = status.lastError ?? (outcome?.kind == ShareOutcomeKind.unreadable ? outcome?.reason : null);
+      });
     } catch (_) {
-      if (mounted)
+      if (mounted) {
         setState(() => _error = 'The forwarding service could not be opened. Close and reopen Kankoo, then retry.');
+      }
     }
   }
 
@@ -52,8 +55,9 @@ class _ShortcutsScreenState extends ConsumerState<ShortcutsScreen> {
       await ref.read(shortcutsInboxProvider).setEnabled(enabled);
       await _load();
     } catch (_) {
-      if (mounted)
+      if (mounted) {
         setState(() => _error = 'Forwarding could not be changed. Your existing encrypted inbox has been kept.');
+      }
     } finally {
       if (mounted) setState(() => _busy = false);
     }

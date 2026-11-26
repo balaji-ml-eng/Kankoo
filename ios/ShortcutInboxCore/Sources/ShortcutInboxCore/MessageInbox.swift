@@ -94,7 +94,7 @@ public actor MessageInbox {
         var folder = directory
         try folder.setResourceValues(resourceValues)
         #if os(iOS)
-        try fileManager.setAttributes([.protectionKey: FileProtectionType.completeUntilFirstUserAuthentication], atPath: directory.path)
+        try fileManager.setAttributes([.protectionKey: FileProtectionType.completeUntilFirstUserAuthentication], ofItemAtPath: directory.path)
         #endif
     }
     private func key(create: Bool) throws -> SymmetricKey {
