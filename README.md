@@ -86,18 +86,15 @@ the device and has nothing to sell you.
 You need Android 11 or newer. The universal APK includes complete ARM64, 32-bit ARM and x86_64
 libraries. On-device AI models require a supported 64-bit ARM phone.
 
-> **Known problem:** the published 1.0.3 APK stays on the logo or opening screen because saved
-> settings fail to load in its release build. Version 1.0.4 in this source turns R8 shrinking off to
-> fix this. Its APK is not published yet.
+**[⬇ Download Kankoo 1.0.4 (build 8) — startup fix](https://github.com/balaji-ml-eng/Kankoo/releases/download/v1.0.4-test/kankoo-1.0.4.apk)**
+(no GitHub sign-in needed, about 143 MB)
 
-[Old 1.0.3 APK (does not work)](https://github.com/balaji-ml-eng/Kankoo/releases/download/v1.0.3-test/kankoo-1.0.3-startup-fix.apk)
-(no GitHub sign-in needed)
+> The older 1.0.3 APK does not get past startup. Use 1.0.4. It turns R8 shrinking off, because with
+> it on, saved settings failed to load. Testing on a real phone is still pending.
 
-This is a signed, non-debuggable release-mode APK. **287 automated tests** pass. It fixes an
-unbounded startup wait and incomplete CPU-architecture packaging found in 1.0.2, while retaining
-the earlier SMS permission, data-preservation, encryption and import fixes.
+This is a signed, non-debuggable release-mode APK.
 
-**Updating from 1.0.2:** install this APK over the existing app. Its signing certificate matches.
+**Updating from 1.0.2 or 1.0.3:** install this APK over the existing app. Its signing certificate matches.
 Do not uninstall or clear app storage; that would remove local data and device-bound keys.
 
 **Updating from a legacy debug build:** the debug signature differs from the persistent release key.
@@ -114,7 +111,7 @@ Uninstalling the app deletes its saved data. Keep a backup before changing insta
 
 | Branch | Purpose |
 | --- | --- |
-| [`main`](https://github.com/balaji-ml-eng/Kankoo/tree/main) | Source for the published 1.0.3 startup hotfix; database schema 4. |
+| [`main`](https://github.com/balaji-ml-eng/Kankoo/tree/main) | Source for the published 1.0.4 startup fix; database schema 4. |
 | [`feature/ca-evidence-ledger`](https://github.com/balaji-ml-eng/Kankoo/tree/feature/ca-evidence-ledger) | Unreleased new CA evidence plan, Milestones 1A and 1B; database schema 6. |
 
 The published APK comes from `main`. New-plan features stay on the development branch.
