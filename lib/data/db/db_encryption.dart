@@ -358,7 +358,11 @@ Future<DbOpenPlan> prepareDatabase(String path, SecretStore secrets, {BlockingRu
 /// The app's database connection: `kankoo.sqlite` in the documents directory
 /// (same file drift_flutter used), opened with the SQLCipher key on a
 /// background isolate.
-DatabaseConnection openAppDatabase({SecretStore? secrets, Future<String> Function()? directory}) {
+DatabaseConnection openAppDatabase({
+  SecretStore? secrets,
+  Future<String> Function()? directory,
+  bool existingOnly = false,
+}) {
   return DatabaseConnection.delayed(
     Future(() async {
       final dir = directory != null ? await directory() : (await getApplicationDocumentsDirectory()).path;
@@ -367,6 +371,10 @@ DatabaseConnection openAppDatabase({SecretStore? secrets, Future<String> Functio
         sqlite3.tempDirectory = (await getTemporaryDirectory()).path;
       } catch (_) {}
       final path = p.join(dir, DbEncryption.fileName);
+      // Background capture never creates a database/key or migrates a plaintext install.
+      if (existingOnly && detectDbFile(path) != DbFileKind.encrypted) {
+        throw StateError('Open Kankoo to initialize the encrypted ledger before notification processing.');
+      }
       final sw = Stopwatch()..start();
       final DbOpenPlan plan;
       try {

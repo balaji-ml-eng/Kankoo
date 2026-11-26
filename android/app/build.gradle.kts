@@ -26,6 +26,7 @@ if (isReleaseTask) {
 android {
     namespace = "com.kankoo.kankoo"
     compileSdk = flutter.compileSdkVersion
+    testOptions { unitTests.isIncludeAndroidResources = true }
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
@@ -36,6 +37,7 @@ android {
     }
 
     defaultConfig {
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
         applicationId = "com.kankoo.kankoo"
         // You can update the following values to match your application needs.
@@ -65,8 +67,9 @@ android {
     buildTypes {
         release {
             signingConfig = if (hasReleaseKey) signingConfigs.getByName("release") else null
-            isMinifyEnabled = true
-            isShrinkResources = true
+            // Carry forward b52b7fe: R8 broke saved-settings startup in release builds.
+            isMinifyEnabled = false
+            isShrinkResources = false
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }
     }
@@ -83,6 +86,13 @@ flutter {
 }
 
 dependencies {
+    implementation("androidx.work:work-runtime:2.11.0")
+    testImplementation("junit:junit:4.13.2")
+    testImplementation("org.robolectric:robolectric:4.16.1")
+    androidTestImplementation("androidx.test:runner:1.6.2")
+    androidTestImplementation("androidx.test:core-ktx:1.6.1")
+    androidTestImplementation("androidx.test.ext:junit:1.2.1")
+    androidTestImplementation("androidx.work:work-testing:2.11.0")
     // NotificationCompat for SMS transaction alerts (SmsAlertReceiver).
     implementation("androidx.core:core:1.13.1")
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")

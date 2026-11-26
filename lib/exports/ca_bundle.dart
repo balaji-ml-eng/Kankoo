@@ -529,6 +529,38 @@ class CaExportService {
           s.receivedAt.toUtc().toIso8601String(),
         ],
     ]);
+    final notificationSources = <int, RawMessage>{
+      for (final r in await _ids(
+        [...selected.payments, ...selected.related].map((t) => t.id),
+        (ids) => (db.select(
+          db.rawMessages,
+        )..where((r) => r.source.equalsValue(SourceKind.notification) & r.transactionId.isIn(ids))).get(),
+      ))
+        r.id: r,
+      for (final r
+          in await (db.select(db.rawMessages)..where(
+                (r) =>
+                    r.source.equalsValue(SourceKind.notification) &
+                    r.receivedAt.isBiggerOrEqualValue(start) &
+                    r.receivedAt.isSmallerThanValue(end) &
+                    r.transactionId.isNull(),
+              ))
+              .get())
+        r.id: r,
+    };
+    csv('notification_sources.csv', [
+      ['raw_id', 'payment_id', 'package', 'external_id', 'received_at_utc', 'parse_status', 'text_sha256'],
+      for (final r in notificationSources.values.toList()..sort((a, b) => a.id.compareTo(b.id)))
+        [
+          r.id,
+          r.transactionId,
+          r.sender,
+          r.externalId,
+          r.receivedAt.toUtc().toIso8601String(),
+          r.parseStatus.name,
+          _hash(utf8.encode(r.body)),
+        ],
+    ]);
     csv('statement_imports.csv', [
       [
         'import_job_id',

@@ -27,7 +27,15 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen> {
   Widget build(BuildContext context) {
     final db = ref.watch(databaseProvider);
     return Scaffold(
-      appBar: AppBar(title: Text(widget.source == SourceKind.email ? 'Email log' : 'SMS log')),
+      appBar: AppBar(
+        title: Text(
+          widget.source == SourceKind.notification
+              ? 'Notification log'
+              : widget.source == SourceKind.email
+              ? 'Email log'
+              : 'SMS log',
+        ),
+      ),
       body: Column(
         children: [
           SizedBox(

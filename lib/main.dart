@@ -9,6 +9,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'app.dart';
 import 'core/startup_gate.dart';
 import 'ingestion/share/share_intake.dart';
+import 'ingestion/notifications/notification_intake.dart';
 import 'llm/on_device/on_device_client.dart';
 import 'llm/on_device/on_device_initialization.dart';
 import 'providers.dart';
@@ -21,12 +22,18 @@ void main() {
   SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
   runApp(
     StartupGate(
-      loadPreferences: SharedPreferences.getInstance,
+      loadPreferences: () async {
+        await waitForNotificationWorker();
+        return SharedPreferences.getInstance();
+      },
       afterReady: _initOnDeviceAi,
       builder: (prefs) => ProviderScope(overrides: [prefsProvider.overrideWithValue(prefs)], child: const KankooApp()),
     ),
   );
 }
+
+@pragma('vm:entry-point')
+void notificationWorkerMain() => runNotificationWorker();
 
 /// Registers the LiteRT-LM engine for on-device Gemma. A failure only
 /// disables on-device AI; it must never stop the app from starting.

@@ -67,7 +67,7 @@ class AppDatabase extends _$AppDatabase {
   static const protectedCategories = {'Transfers', 'Other'};
 
   @override
-  int get schemaVersion => 7;
+  int get schemaVersion => 8;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -127,6 +127,7 @@ class AppDatabase extends _$AppDatabase {
         await installEvidenceGuards();
       }
       if (from < 7) await installEvidenceGuards();
+      // v8 appends notification to the persisted SourceKind enum. No table DDL.
     }),
     beforeOpen: (details) async {
       await customStatement('PRAGMA foreign_keys = ON');

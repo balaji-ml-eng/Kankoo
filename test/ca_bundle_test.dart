@@ -330,7 +330,7 @@ void main() {
       ledger = AppDatabase(NativeDatabase(file));
       expect((await ledger.select(ledger.transactions).getSingle()).note, 'Retain me');
       expect((await ledger.select(ledger.exportRuns).getSingle()).manifestSha256, bundle.manifestSha256);
-      expect(await ledger.customSelect('PRAGMA user_version').map((r) => r.data.values.single).getSingle(), 7);
+      expect(await ledger.customSelect('PRAGMA user_version').map((r) => r.data.values.single).getSingle(), 8);
       await expectLater(ledger.customStatement('DELETE FROM export_runs'), throwsA(anything));
       final backup = await DataExport(ledger).backupJson();
       await DataExport(db).restore(backup);

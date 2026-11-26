@@ -60,6 +60,14 @@
             <meta-data android:name="flutter_deeplinking_enabled" android:value="false" />
         </activity>
         <!-- Posts a notification for incoming bank SMS; reads no data itself. -->
+        <service android:name=".BankNotificationListener"
+            android:label="Kankoo transaction capture"
+            android:exported="true"
+            android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE">
+            <intent-filter>
+                <action android:name="android.service.notification.NotificationListenerService" />
+            </intent-filter>
+        </service>
         <receiver
             android:name=".SmsAlertReceiver"
             android:exported="true"

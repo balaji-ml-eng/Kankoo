@@ -31,7 +31,9 @@ class MainActivity : FlutterFragmentActivity() {
     /** Text shared to Kankoo / kankoo://ingest links not yet taken by Dart. */
     private val pendingShares = ArrayList<Map<String, Any?>>()
     private var shareChannel: MethodChannel? = null
+    private var notificationBridge: NotificationBridge? = null
     override fun onCreate(savedInstanceState: Bundle?) {
+        NotificationBridge.activityPresent = true
         super.onCreate(savedInstanceState)
         // Apply "Hide in recent apps" before the first frame, so even the
         // cold-start snapshot is protected. Dart keeps it in shared_preferences
@@ -50,6 +52,7 @@ class MainActivity : FlutterFragmentActivity() {
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
+        notificationBridge = NotificationBridge(applicationContext, flutterEngine.dartExecutor.binaryMessenger)
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "kankoo/security").setMethodCallHandler { call, result ->
             when (call.method) {
                 // FLAG_SECURE: blank thumbnail in Recents, no screenshots.
@@ -250,6 +253,8 @@ class MainActivity : FlutterFragmentActivity() {
     }
 
     override fun onDestroy() {
+        notificationBridge?.close()
+        NotificationBridge.activityPresent = false
         io.shutdown()
         super.onDestroy()
     }

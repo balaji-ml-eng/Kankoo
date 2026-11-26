@@ -47,6 +47,12 @@ class SettingsScreen extends ConsumerWidget {
             const _SmsCard(),
             const SizedBox(height: 10),
             const EmailSourceCard(),
+            ListTile(
+              leading: const Icon(Icons.notifications_outlined),
+              title: const Text('Notification capture'),
+              subtitle: const Text('Selected bank and payment apps · encrypted on this device'),
+              onTap: () => context.push('/notifications'),
+            ),
             const SizedBox(height: 10),
             const LlmStatusCard(),
             const SizedBox(height: 20),

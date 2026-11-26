@@ -1,7 +1,8 @@
 import 'package:drift/drift.dart';
 
 /// Where a piece of evidence came from.
-enum SourceKind { sms, email, manual, shortcut, statement }
+// Append only: enum indices are stored in existing encrypted databases/backups.
+enum SourceKind { sms, email, manual, shortcut, statement, notification }
 
 enum TxnDirection { debit, credit }
 

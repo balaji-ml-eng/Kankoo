@@ -66,7 +66,7 @@ void main() {
       expect((t.amountMinor, t.currency, t.convertedMinor, t.convertedCurrency), (25000, 'INR', null, null));
       expect((await db.allAccounts()).single.currency, 'INR');
       expect((await db.allBudgets()).single.currency, 'INR');
-      expect(await db.customSelect('PRAGMA user_version').map((r) => r.data.values.first).getSingle(), 7);
+      expect(await db.customSelect('PRAGMA user_version').map((r) => r.data.values.first).getSingle(), 8);
       await db.close();
     } finally {
       await dir.delete(recursive: true);

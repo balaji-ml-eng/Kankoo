@@ -22,8 +22,10 @@ import 'features/settings/email_connect_screen.dart';
 import 'features/settings/llm_settings_screen.dart';
 import 'features/settings/messages_screen.dart';
 import 'features/settings/settings_screen.dart';
+import 'features/settings/notification_capture_screen.dart';
 import 'features/shell/home_shell.dart';
 import 'providers.dart';
+import 'ingestion/notifications/notification_intake.dart';
 
 final _routerProvider = Provider<GoRouter>((ref) {
   return GoRouter(
@@ -39,10 +41,16 @@ final _routerProvider = Provider<GoRouter>((ref) {
       GoRoute(path: '/welcome', builder: (_, _) => const OnboardingScreen()),
       GoRoute(
         path: '/messages',
-        builder: (_, s) =>
-            MessagesScreen(source: s.uri.queryParameters['source'] == 'email' ? SourceKind.email : SourceKind.sms),
+        builder: (_, s) => MessagesScreen(
+          source: switch (s.uri.queryParameters['source']) {
+            'email' => SourceKind.email,
+            'notification' => SourceKind.notification,
+            _ => SourceKind.sms,
+          },
+        ),
       ),
       GoRoute(path: '/email/connect', builder: (_, _) => const EmailConnectScreen()),
+      GoRoute(path: '/notifications', builder: (_, _) => const NotificationCaptureScreen()),
       GoRoute(path: '/llm', builder: (_, _) => const LlmSettingsScreen()),
       GoRoute(path: '/budgets', builder: (_, _) => const BudgetsScreen()),
       GoRoute(path: '/recurring', builder: (_, _) => const RecurringScreen()),
@@ -104,6 +112,7 @@ class KankooApp extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     // Loads the home currency before anything formats an amount.
     ref.watch(homeCurrencyProvider);
+    ref.watch(notificationConsumerProvider);
     return MaterialApp.router(
       title: 'Kankoo',
       debugShowCheckedModeBanner: false,
