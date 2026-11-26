@@ -11,6 +11,7 @@ import 'features/dashboard/dashboard_screen.dart';
 import 'features/insights/insights_screen.dart';
 import 'features/imports/statement_import_screen.dart';
 import 'features/reconciliation/reconciliation_screen.dart';
+import 'features/exports/ca_export_screen.dart';
 import 'features/lock/app_lock_gate.dart';
 import 'features/onboarding/onboarding_screen.dart';
 import 'data/db/tables.dart';
@@ -46,6 +47,14 @@ final _routerProvider = Provider<GoRouter>((ref) {
       GoRoute(path: '/budgets', builder: (_, _) => const BudgetsScreen()),
       GoRoute(path: '/recurring', builder: (_, _) => const RecurringScreen()),
       GoRoute(path: '/statements/import', builder: (_, _) => const StatementImportScreen()),
+      GoRoute(
+        path: '/ca/export',
+        builder: (_, state) => CaExportScreen(
+          month:
+              DateTime.tryParse('${state.uri.queryParameters['month']}-01') ??
+              DateTime(DateTime.now().year, DateTime.now().month),
+        ),
+      ),
       GoRoute(
         path: '/reconciliation',
         builder: (_, state) =>

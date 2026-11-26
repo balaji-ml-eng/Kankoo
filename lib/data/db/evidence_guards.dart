@@ -24,6 +24,10 @@ SELECT RAISE(ABORT, 'Allocation exceeds invoice or available refund balance') WH
 ''';
 
 Map<String, String> _evidenceTriggers() => {
+  for (final table in ['export_runs', 'export_items'])
+    for (final action in ['UPDATE', 'DELETE'])
+      '${table}_no_${action.toLowerCase()}':
+          "BEFORE $action ON $table BEGIN SELECT RAISE(ABORT, 'Export history is append-only'); END",
   'review_events_no_update':
       "BEFORE UPDATE ON review_events BEGIN SELECT RAISE(ABORT, 'Review history is append-only'); END",
   'review_events_no_delete':

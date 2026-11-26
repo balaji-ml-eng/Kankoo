@@ -1,10 +1,10 @@
 <p align="center"><img src="assets/branding/kankoo-logo.svg" width="420" alt="Kankoo"></p>
 
 > **New CA evidence plan — development branch.**
-> `feature/ca-evidence-ledger` contains Milestones 1A and 1B (schema 6).
-> CA exports (1C) remain on hold. This branch inherits the common startup/build safeguards from `main`.
+> `feature/ca-evidence-ledger` contains Milestones 1A, 1B and 1C (schema 7).
+> Monthly CA ZIP exports are available under Monthly books > Export for CA. This branch inherits the common startup/build safeguards from `main`.
 > The downloadable 1.0.3 APK below is the separate `main` hotfix (schema 4).
-> Development reports: [1A](MILESTONE_1A.txt) and [1B](MILESTONE_1B.txt).
+> Development reports: [1A](MILESTONE_1A.txt), [1B](MILESTONE_1B.txt) and [1C](MILESTONE_1C.txt).
 
 <p align="center"><b>A free, open-source finance tracker that fills itself in.</b></p>
 
@@ -117,10 +117,10 @@ Uninstalling the app deletes its saved data. Keep a backup before changing insta
 | Branch | Purpose |
 | --- | --- |
 | [`main`](https://github.com/balaji-ml-eng/Kankoo/tree/main) | Source for the published 1.0.3 startup hotfix; database schema 4. |
-| [`feature/ca-evidence-ledger`](https://github.com/balaji-ml-eng/Kankoo/tree/feature/ca-evidence-ledger) | Unreleased new CA evidence plan, Milestones 1A and 1B; database schema 6. |
+| [`feature/ca-evidence-ledger`](https://github.com/balaji-ml-eng/Kankoo/tree/feature/ca-evidence-ledger) | Unreleased new CA evidence plan, Milestones 1A, 1B and 1C; database schema 7. |
 
 The published APK comes from `main`. New-plan features stay on the development branch.
-Common startup/build safeguards are carried forward into development. CA export work (1C) remains pending.
+Common startup/build safeguards are carried forward into development. Monthly CA handoffs contain Excel-compatible CSVs, authenticated original PDFs, audit history and a SHA-256 manifest. These readable ZIPs are not complete restorable vault backups. The published APK startup investigation remains a separate task.
 See [startup investigation and checks](STARTUP_HOTFIX.txt) for the APK validation and physical-phone testing limits.
 
 ### Test checklist

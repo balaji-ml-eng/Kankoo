@@ -67,7 +67,7 @@ class AppDatabase extends _$AppDatabase {
   static const protectedCategories = {'Transfers', 'Other'};
 
   @override
-  int get schemaVersion => 6;
+  int get schemaVersion => 7;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -126,6 +126,7 @@ class AppDatabase extends _$AppDatabase {
         await customStatement('DROP TRIGGER IF EXISTS audit_transaction_business_use');
         await installEvidenceGuards();
       }
+      if (from < 7) await installEvidenceGuards();
     }),
     beforeOpen: (details) async {
       await customStatement('PRAGMA foreign_keys = ON');

@@ -393,7 +393,7 @@ void main() {
         ledger.reviewEvents,
       )..where((e) => e.entityType.equals('transaction') & e.entityId.equals(id))).getSingle();
       expect(audit.provenance, 'rule');
-      expect(await ledger.customSelect('PRAGMA user_version').map((r) => r.data.values.single).getSingle(), 6);
+      expect(await ledger.customSelect('PRAGMA user_version').map((r) => r.data.values.single).getSingle(), 7);
       expect(await ledger.customSelect('PRAGMA foreign_key_check').get(), isEmpty);
     } finally {
       await ledger.close();

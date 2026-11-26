@@ -1,0 +1,113 @@
+Kankoo - Milestone 1C: monthly CA export bundle
+Date: 2026-11-26
+Branch: feature/ca-evidence-ledger
+Version: 1.1.0-dev.3+9; database schema 7
+
+Scope
+Monthly books > Export for CA opens the selected month's preview, save action
+and generated-snapshot history. This work stays on the CA development branch;
+main, the published APK and the separate iOS branch are not updated by it.
+
+The ZIP is a readable CA handoff, not a complete restorable app/vault backup.
+Ledger output is Excel-compatible UTF-8 CSV, not a native .xlsx workbook.
+No OCR, GST/ITC approval, billing or Milestone 2 capture work is included.
+
+Selection and amounts
+The period is the device-local calendar month, start inclusive/end exclusive.
+All month payments are exported, including personal, unreviewed, foreign-currency,
+uncertain, possible-duplicate and self-transfer rows. Nothing is silently limited
+to the latest 2,000 rows. Months over 50,000 payments fail without a receipt.
+Currency flows are separate; no FX conversion or tax deduction is inferred.
+Gross summary flows include all non-transfer rows and are provisional until
+unreviewed/possible-duplicate rows are reconciled. Reviewed business totals also
+exclude unconfirmed payments and possible duplicates. Paise/decimal formatting
+uses integer arithmetic and aggregation uses BigInt, including beyond int64 sums.
+
+Invoices include invoice dates within the month plus those linked to monthly
+payments. All allocations of included invoices are retained. Out-of-month
+payments needed for those allocations are placed in related_payments.csv and
+must not be counted as this month's spending. Unassigned PDFs attached during
+the month are included for review. Linked invoice header/line arithmetic is
+revalidated; inconsistent links block export. Unlinked mismatches are labelled.
+Business use and GST eligibility remain separate; Evidence Matched is not tax
+approval. PDF metadata and manually entered invoice details remain reviewable.
+
+Bundle format version 1
+ledger.csv             All month payments, exact amounts and minor units,
+                       classifications, business purpose, category/account,
+                       bank status, possible duplicate ID, invoice/PDF links.
+related_payments.csv   Out-of-month allocation parents, same ledger columns.
+summary.csv            Per-currency gross and reviewed business flows.
+invoices.csv           Header amounts, tax components, fresh arithmetic result,
+                       GST review status and PDF path.
+invoice_lines.csv      Stored line details and exact minor units, when present.
+allocations.csv        Partial/combined payments, refunds and related-month flag.
+documents.csv          Original filenames, exported paths, byte lengths, hashes.
+source_events.csv     Source identities and hashes, not raw message payloads.
+statement_imports.csv Reconciliation balances, row outcomes, parser/mapping,
+                       source account, original statement name and hash.
+audit.csv              Edits made in the month plus included-record history and
+                       matching merchant-rule history; deleted-link snapshots
+                       are retained even though no active link remains.
+records.json           Canonical lossless transaction/invoice/document snapshots
+                       with per-record SHA-256; matches export_items exactly.
+invoices/*.pdf         Authenticated original PDF bytes, renamed using safe date,
+                       vendor, number, document ID and hash; no path traversal.
+README.txt             Selection, reconciliation, privacy and spreadsheet notes.
+manifest.json          Run ID, timestamp, local period offsets and every other
+                       file's relative path, byte length and SHA-256 digest.
+
+CSV fields are quoted with doubled quotes, UTF-8 BOM and CRLF row endings.
+Formula-like source text is prefixed with an apostrophe. Numeric amount strings
+stay numeric; records.json preserves originals and integers beyond spreadsheet
+precision. Import identifiers/references as text in Excel. The manifest excludes
+itself; its SHA-256 is recorded in export_runs and shown/copyable in the app.
+Hashes detect changes against a trusted digest; they do not prove authorship.
+
+Integrity, persistence and save behavior
+One DB transaction selects the snapshot, checks foreign keys/allocation limits,
+authenticates and hashes every PDF, builds the ZIP and records the completed run
+with its snapshots. A missing/tampered PDF, wrong key, inconsistent classification,
+invalid linked invoice, size limit or database failure aborts without new history.
+Original PDFs, encryption keys, ledger rows and prior audit/history are preserved.
+The total uncompressed bundle, including manifests and records, is capped at
+100 MiB. ZIP compression runs in a background isolate. Output is held in memory;
+the feature creates no private plaintext ZIP cache or plaintext PDF copies.
+The user-selected destination contains readable data; protect and share it safely.
+
+Schema 7 adds UPDATE/DELETE guards to export_runs/export_items. Existing review
+audit remains append-only. The v6 upgrade preserves ledger and export history.
+Existing explicit ledger restore drops/reinstalls these guards atomically, and
+its PDF-metadata-only backup rejection remains in force. Do not treat CA ZIPs as
+a workaround for the still-pending complete encrypted-vault backup/restore.
+
+Saving requires the app to be foregrounded and unlocked after generation.
+Duplicate export taps are blocked during generation. A completed generation
+records a receipt even if the destination picker is cancelled or saving fails;
+history explicitly describes generation, not delivery or CA acceptance. A retry
+generates a fresh snapshot. No retained ZIP or re-download is promised by history.
+
+Verification
+Full Flutter regression suite: 369 tests passed.
+New focused coverage: 14 service/integration tests and 6 widget flows, including
+real AES-GCM PDF reads, every manifest hash/length/file membership, per-record
+snapshot hashes, immutable old exports, v6-to-v7 migration and ledger-only backup
+restore, cross-month/combined/refund allocations, invoice-only periods, CSV
+formula protection, statement provenance, 2,103 exported rows with sums beyond
+int64, 50,001-row refusal, calendar boundaries and uncertain/duplicate totals.
+Injected PDF/file/key/DB failures verify atomicity and preservation. Widgets test
+save/cancel/retry, duplicate tap prevention, lock gating and 320px/150% text in
+light/dark. Rendered 390px and narrow-phone screenshots were visually inspected.
+Static analysis: no errors or warnings; 58 existing/new Material import
+deprecation infos. git diff --check passed.
+Android arm64 debug build passed: build/app/outputs/flutter-apk/app-debug.apk.
+This compile check is not a public signed upgrade or physical-device runtime test.
+
+Remaining validation and limits
+No physical phone/picker/CA spreadsheet pilot was performed. Real low-memory
+phones, storage-full/interrupted saving, OEM lifecycle behavior, encrypted-vault
+portability and release signing still require pilot validation. Export generation
+holds a consistent DB transaction; large bundles consume memory and can delay
+other writes. A generated receipt cannot attest that an external save completed.
+This milestone does not resolve or republish the separate Android release's
+startup failure investigation. No public release or production-readiness claim.

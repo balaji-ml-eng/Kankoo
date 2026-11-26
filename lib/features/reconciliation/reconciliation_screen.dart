@@ -185,6 +185,13 @@ class _ReconciliationScreenState extends ConsumerState<ReconciliationScreen> {
                               icon: const Icon(Icons.tune, size: 18),
                               label: const Text('Rules'),
                             ),
+                            TextButton.icon(
+                              onPressed: _busy != null
+                                  ? null
+                                  : () => context.push('/ca/export?month=${DateFormat('yyyy-MM').format(_month)}'),
+                              icon: const Icon(Icons.folder_zip_outlined, size: 18),
+                              label: const Text('Export for CA'),
+                            ),
                           ],
                         ),
                         const SizedBox(height: 8),

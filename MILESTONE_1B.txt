@@ -161,6 +161,7 @@ Keystore/lock and interruption behavior still need device pilot testing.
 Invoice details are manual; OCR, an in-app PDF renderer and itemised line editing
 were not added. General accounts receivable and ITC assessment are outside 1B.
 PDF backup/portability remains blocked as documented in 1A; keep original PDFs.
-1C CA ZIP/Excel export, file manifest generation and complete portability are next.
+Update: 1C monthly CA ZIP/CSV handoffs and file manifests are implemented in
+MILESTONE_1C.txt. Complete restorable encrypted-vault portability remains pending.
 Milestone 2 durable native notification capture and subscription billing remain
 outside this milestone. No public release or production-readiness claim is made.
