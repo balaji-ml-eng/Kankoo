@@ -8,6 +8,8 @@ Maintenance update, 26 November 2026: kept on feature/ca-evidence-ledger. Curren
 development version is 1.1.0-dev.2+8, above the separate 1.0.3 hotfix's build 7.
 The branch inherits the common startup/ABI-build safeguards from main. The new
 CA features remain outside main and its public APK. Milestone 1C remains on hold.
+Post-integration check, 26 November: all 349 tests passed; static analysis has no
+errors or warnings (56 informational Material import deprecations).
 The published v1.0.2-test release, main branch and release signing files were not
 replaced or published as part of this milestone. No new dependency was needed.
 
