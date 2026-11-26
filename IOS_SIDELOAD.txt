@@ -38,6 +38,9 @@ developer membership for this free-account test route. It has Apple's free
 signing limits (including AltStore's documented three sideloaded-app limit).
 This route is for initial testing; an App Store release is planned after real
 iPhone acceptance checks. No lifetime or automatic refresh guarantee is made.
+Before moving from a sideloaded install to the App Store version, export a
+Kankoo backup. The App Store install may have a separate app identity/storage;
+restore the backup there and check your records before removing the test app.
 
 Official AltStore documentation:
 https://faq.altstore.io/altstore-classic/your-altstore
