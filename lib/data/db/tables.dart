@@ -1,7 +1,7 @@
 import 'package:drift/drift.dart';
 
 /// Where a piece of evidence came from.
-enum SourceKind { sms, email, manual, shortcut }
+enum SourceKind { sms, email, manual, shortcut, statement }
 
 enum TxnDirection { debit, credit }
 
@@ -81,10 +81,19 @@ class Transactions extends Table {
   /// Self-transfers between own accounts are excluded from spend.
   BoolColumn get isTransfer => boolean().withDefault(const Constant(false))();
   BoolColumn get categoryLocked => boolean().withDefault(const Constant(false))();
+  IntColumn get businessUseBps => integer().withDefault(const Constant(0))();
+  TextColumn get reviewStatus => text().withDefault(const Constant('unreviewed'))();
 
   /// Set when dedup found a borderline match the user should confirm.
   IntColumn get duplicateOfId => integer().nullable()();
   DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
+
+  @override
+  List<String> get customConstraints => [
+    'CHECK (typeof(amount_minor) = \'integer\' AND amount_minor > 0)',
+    'CHECK (typeof(business_use_bps) = \'integer\' AND business_use_bps BETWEEN 0 AND 10000)',
+    "CHECK (review_status IN ('unreviewed','personal','needs_evidence','evidence_matched','mismatch'))",
+  ];
 }
 
 /// Every SMS / email we have looked at, parsed or not. Keeping the raw

@@ -1,0 +1,181 @@
+Kankoo - Milestone 1A implementation review
+25 November 2026
+
+Scope
+Executed Master Execution Brief v4, immediate deliverable 1A.
+Branch: milestone-1a-statement-import
+Base: 10a84eff1cf90522109f460b356c88ce14cb31c8 (published 1.0.2 test release).
+Development version: 1.1.0-dev.1+5. The published tag, APK and signing key were not replaced.
+GPL-3.0 licensing remains in place.
+
+Existing files inspected
+pubspec.yaml
+pubspec.lock
+lib/app.dart
+lib/providers.dart
+lib/core/currency.dart
+lib/core/secrets.dart
+lib/core/theme/app_theme.dart
+lib/core/theme/palette.dart
+lib/data/db/tables.dart
+lib/data/db/database.dart
+lib/data/db/database.g.dart (generated schema integration)
+lib/data/db/db_encryption.dart
+lib/data/backup/data_export.dart
+lib/features/settings/settings_screen.dart
+lib/features/settings/accounts_screen.dart
+lib/features/dashboard/dashboard_screen.dart
+lib/features/activity/transaction_sheet.dart
+lib/ingestion/ingestion_service.dart
+test/currency_db_test.dart
+test/data_export_test.dart
+test/money_features_test.dart
+test/llm_features_test.dart
+analysis_options.yaml
+Also consulted installed Drift and file_picker APIs for the actual pinned versions.
+Private release key contents were not read.
+
+Changed structure (N = new, M = modified)
+lib/
+  app.dart [M: import route]
+  core/money_minor.dart [N: exact INR parsing/formatting]
+  data/
+    backup/data_export.dart [M: evidence-aware completeness and atomic restore]
+    db/
+      tables.dart [M: source enum, business-use basis points, review status]
+      database.dart [M: schema 5, transactional upgrade, reset ordering]
+      database.g.dart [M: generated Drift code]
+      evidence_tables.dart [N: Phase 1 evidence schema]
+      evidence_guards.dart [N: allocation invariants and audit triggers]
+  documents/vault/pdf_vault.dart [N: authenticated encrypted PDF storage]
+  features/
+    activity/transaction_sheet.dart [M: bank-statement source icon]
+    settings/settings_screen.dart [M: Statements & evidence entry]
+    imports/
+      statement_import_screen.dart [N: source, mapping, reconciliation and PDFs]
+      statement_import_providers.dart [N: bounded file intake and services]
+  ingestion/statements/
+    statement_csv.dart [N: strict CSV parsing and reconciliation]
+    statement_importer.dart [N: atomic commit and source deduplication]
+  tax_checks/invoice_validation.dart [N: GSTIN checksum and invoice arithmetic]
+  ui/ledger_theme.dart [N: scoped neutral financial design system]
+test/
+  currency_db_test.dart [M: legacy fixture and schema-version expectation]
+  money_features_test.dart [M: transaction fields and legacy migration fixture]
+  llm_features_test.dart [M: new required transaction fields]
+  evidence_schema_test.dart [N]
+  statement_import_test.dart [N]
+  statement_import_screen_test.dart [N]
+  invoice_validation_test.dart [N]
+  pdf_vault_test.dart [N]
+  support/legacy_ledger.dart [N: reconstruct released v4 table shape]
+Other modified files: pubspec.yaml and pubspec.lock.
+Only new dependency: cryptography 2.9.0 (AES-GCM and HKDF).
+
+Database and integrity
+Schema version 5 adds import_jobs, documents, invoices, invoice_lines,
+source_events, classifications, business_rules, payment_allocations,
+review_events, export_runs and export_items. Existing transactions gain
+business_use_bps and review_status. Existing SourceKind indexes are preserved.
+The upgrade runs in one transaction and retains existing IDs, notes, categories,
+accounts, raw-message links, currency fields and indexes. No destructive reset.
+Runtime foreign-key enforcement is enabled. Monetary fields use INTEGER paise;
+CHECK constraints reject fractional amounts and invalid percentages/tax equations.
+
+Source identity is unique per (source, source_account_id, external_id).
+Import file hashes are unique per source and account. Jobs record original file
+hash, parser version, mapping, declared balances, totals and exact row outcomes.
+Source/job account consistency is guarded in both update directions.
+Allocation triggers guard each transaction's gross allocated amount, each
+invoice's net paid amount, direction, currency, refunds and parent edits.
+Partial and combined payments are supported by the schema; their UI is 1B.
+Classification, rule and allocation edits produce JSON before/after audit events
+with provenance. Review events reject normal UPDATE and DELETE operations.
+This is application-level audit protection, not legal immutability against a
+device owner. Explicit full-ledger restore replaces history atomically.
+
+CSV import behavior
+UTF-8 CSV (optional BOM), comma/semicolon/tab delimiters, quoted fields and
+CRLF/LF endings; maximum 10 MB and 50,000 transactions. Header-row selection,
+explicit date formats and oldest/newest-first ordering. Separate debit/credit
+columns or amount plus a direction marker. Optional running balance, UTR/reference
+and bank transaction ID columns. User selects or adds an active INR bank account.
+Opening and closing balances must be entered from the bank statement.
+All rows, mapped running balances and opening + credits - debits = closing must
+pass before a single row is committed. Amounts are never rounded from floats.
+Malformed rows, conflicting source IDs or a failed DB write roll back the import.
+Exact file repeats are blocked. Overlapping exports with stable IDs are skipped.
+Source tombstones survive transaction deletion, preventing silent resurrection.
+Strong account/reference/amount/direction/date matches link existing payments and
+preserve user edits. Equal amounts alone never trigger an automatic merge.
+Possible overlaps are retained for review, not silently dropped.
+Without a bank ID, identity is a normalized row hash plus occurrence number.
+Changing mappings or exports without stable IDs can create reviewable overlaps;
+test actual bank samples before treating bank support as certified.
+
+Encrypted PDF vault
+Original bytes are hashed for identity and encrypted with AES-256-GCM, fresh
+nonces, per-file HKDF-SHA256 keys derived from the existing device-bound DB key,
+and authenticated version/hash context. No new master key is silently created.
+Files are ciphertext-only .kpdf files; temporary writes are also ciphertext.
+Metadata remains inside SQLCipher. Failed authentication, missing/wrong keys and
+DB failures preserve original files and keys. Verified encrypted orphan files can
+be recovered on retry. Hash duplicates reuse the existing document.
+Hashing/encryption/decryption and CSV preview validation run off the UI thread.
+PDF intake checks the header, end marker and 25 MB limit. It does not render,
+OCR, extract invoice fields, certify PDF safety or establish tax eligibility.
+The service can decrypt into memory; an invoice viewer is not part of 1A.
+
+Backups
+Existing database-only backups remain available when there are no vault PDFs.
+Schema-5 backups must contain every schema-5 table; earlier backups remain
+compatible with defaults. Restore validates foreign keys and allocation/source
+invariants before committing and reinstalls audit guards without fabricating edits.
+When PDFs exist, database-only backup creation is blocked with an explanatory
+message. A metadata-only PDF backup is rejected on restore. A complete portable,
+encrypted vault backup has not been implemented; users must keep original PDFs.
+The PDF import screen explains this limitation before attachment.
+
+UI
+Open Settings > Statements & evidence. Scoped neutral light/dark theme with
+FAFAFA/0F1115 backgrounds, thin borders, ink primary actions, tabular date and
+money styles, Indian grouping and exactly two decimal places. Emerald indicates
+reconciliation; amber requests review; crimson identifies mismatch. No charts,
+marketing filler or pretend invoice matches. Live column samples, row-level
+errors, mismatch-blocked import, duplicate-blocked import and explicit success
+counts. One scrollable phone workflow and wider multi-column mapping layouts.
+Large-text reconciliation wraps without horizontal overflow.
+
+Verification
+Full Flutter suite: 319 tests passed (25 November 2026).
+Final phone widget rerun: 3 tests passed, including the complete mapping/import/
+duplicate workflow at 390px, then 320px with 150% text, plus light/dark large-text
+reconciliation cards. No render overflow or framework exception.
+Migration fixtures exercise v2, v3 and the released v4 shape. v4 checks preserve
+IDs, notes, raw links, account and money values, defaults and transaction indexes.
+Service checks include duplicate imports, overlap detection, deletion tombstones,
+conflicting IDs and atomic rollback, row/running/closing mismatches, invoice tax
+arithmetic, GSTIN checksum, PDF round trip, ciphertext tampering and missing keys.
+Guard tests cover partial/combined/refund allocations, parent edits, strict FKs,
+integer money and percentages, provenance, immutable audit and restore rollback.
+Static analysis: no errors or warnings; 48 informational Flutter Material import
+deprecations remain (45 existed before this milestone, 3 new UI imports).
+git diff --check: passed.
+Android arm64 debug build: passed; refreshed final source build took 10.1 seconds.
+Artifact: build/app/outputs/flutter-apk/app-debug.apk. This is a debug compilation
+artifact, not a signed public upgrade for the existing release installation.
+The existing Android toolchain emits Gradle/AGP/Kotlin and SDK metadata upgrade
+warnings; toolchain upgrades were kept outside this milestone.
+Visually inspected rendered source, mismatch, reconciled and dark large-text
+screens. Local preview PNGs: ../kankoo-m1-previews/.
+System temp space was exhausted on the first attempt; final verification used
+the workspace temp directory. All stated results are from subsequent runs.
+
+Limits and remaining milestones
+No physical phone was connected for this run. Android Keystore/biometric behavior,
+OEM document pickers, interruption recovery and real bank exports still need a
+device pilot. Widget renders do not replace device testing or an accessibility audit.
+1B triage, business splits/rules UI and invoice matching workspace are pending.
+1C CA ZIP/Excel export, manifest generation and document portability are pending.
+Milestone 2 durable encrypted native notification capture is pending.
+No subscription billing or commercial launch work was added in 1A.

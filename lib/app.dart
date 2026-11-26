@@ -9,6 +9,8 @@ import 'features/assistant/assistant_screen.dart';
 import 'features/budgets/budgets_screen.dart';
 import 'features/dashboard/dashboard_screen.dart';
 import 'features/insights/insights_screen.dart';
+import 'features/imports/statement_import_screen.dart';
+import 'features/reconciliation/reconciliation_screen.dart';
 import 'features/lock/app_lock_gate.dart';
 import 'features/onboarding/onboarding_screen.dart';
 import 'data/db/tables.dart';
@@ -43,6 +45,12 @@ final _routerProvider = Provider<GoRouter>((ref) {
       GoRoute(path: '/llm', builder: (_, _) => const LlmSettingsScreen()),
       GoRoute(path: '/budgets', builder: (_, _) => const BudgetsScreen()),
       GoRoute(path: '/recurring', builder: (_, _) => const RecurringScreen()),
+      GoRoute(path: '/statements/import', builder: (_, _) => const StatementImportScreen()),
+      GoRoute(
+        path: '/reconciliation',
+        builder: (_, state) =>
+            ReconciliationScreen(initialMonth: DateTime.tryParse('${state.uri.queryParameters['month']}-01')),
+      ),
       GoRoute(path: '/settings/accounts', builder: (_, _) => const AccountsScreen()),
       GoRoute(path: '/settings/categories', builder: (_, _) => const CategoriesScreen()),
       StatefulShellRoute.indexedStack(

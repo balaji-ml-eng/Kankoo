@@ -10,6 +10,8 @@ import 'package:kankoo/ingestion/categorizer.dart';
 import 'package:kankoo/ingestion/parser/parsed_txn.dart';
 import 'package:kankoo/ui/amount_field.dart';
 
+import 'support/legacy_ledger.dart';
+
 var _id = 0;
 
 Category cat(int id, String name, {bool income = false}) =>
@@ -35,6 +37,8 @@ TxnView txn(
     status: TxnStatus.confirmed,
     isTransfer: transfer,
     categoryLocked: false,
+    businessUseBps: 0,
+    reviewStatus: 'unreviewed',
     createdAt: at,
   ),
   category,
@@ -358,6 +362,7 @@ void main() {
       // Build a fresh DB, then strip it back to the v2 shape.
       var db = AppDatabase(NativeDatabase(file));
       await db.addCategory(name: 'Custom', icon: 'other', color: 1);
+      await makeV4Fixture(db);
       await db.customStatement('DROP TABLE budgets');
       await db.customStatement('ALTER TABLE categories DROP COLUMN seed_name');
       await db.customStatement('PRAGMA user_version = 2');

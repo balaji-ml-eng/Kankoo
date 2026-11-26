@@ -38,6 +38,7 @@ class _EditSheetState extends ConsumerState<_EditSheet> {
   late var _at = _t.occurredAt;
   late int? _accountId = _t.accountId;
   var _saving = false;
+  String? _error;
 
   @override
   void dispose() {
@@ -103,23 +104,35 @@ class _EditSheetState extends ConsumerState<_EditSheet> {
       }
     }
 
-    await db.transaction(() async {
-      if (renameAll) await db.renameMerchant(oldMerchant!, newMerchant!);
-      await db.updateTxn(
-        _t.id,
-        amountMinor: minor,
-        currency: Value(_currency),
-        convertedMinor: keepConversion ? const Value.absent() : const Value(null),
-        convertedCurrency: keepConversion ? const Value.absent() : const Value(null),
-        direction: _direction,
-        occurredAt: _at,
-        merchant: newMerchant,
-        accountId: _accountId,
-        note: note,
-        categoryId: kindMismatch ? const Value(null) : const Value.absent(),
-      );
-    });
-    if (mounted) Navigator.pop(context);
+    try {
+      await db.transaction(() async {
+        if (renameAll) await db.renameMerchant(oldMerchant!, newMerchant!);
+        await db.updateTxn(
+          _t.id,
+          amountMinor: minor,
+          currency: Value(_currency),
+          convertedMinor: keepConversion ? const Value.absent() : const Value(null),
+          convertedCurrency: keepConversion ? const Value.absent() : const Value(null),
+          direction: _direction,
+          occurredAt: _at,
+          merchant: newMerchant,
+          accountId: _accountId,
+          note: note,
+          categoryId: kindMismatch ? const Value(null) : const Value.absent(),
+        );
+      });
+      if (mounted) Navigator.pop(context);
+    } catch (error) {
+      if (mounted) {
+        setState(
+          () => _error = error is StateError
+              ? error.message.toString()
+              : 'This edit conflicts with linked invoice evidence. Review its links in Monthly books first.',
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
   }
 
   @override
@@ -136,6 +149,11 @@ class _EditSheetState extends ConsumerState<_EditSheet> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Text('Edit transaction', style: context.text.titleLarge),
+            if (_error != null)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                child: Text(_error!, style: context.text.bodyMedium?.copyWith(color: Palette.coral)),
+              ),
             const SizedBox(height: 14),
             SegmentedButton<TxnDirection>(
               segments: const [

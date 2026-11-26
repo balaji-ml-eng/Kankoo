@@ -1,0 +1,160 @@
+Kankoo - Milestone 1B implementation review
+25 November 2026
+
+Scope
+Implemented Master Execution Brief v4, Milestone 1B, on top of the local 1A work.
+Development version: 1.1.0-dev.2+6. Database schema: 6.
+The published v1.0.2-test release, main branch and release signing files were not
+replaced or published as part of this milestone. No new dependency was needed.
+
+Founder workflow
+Open Settings > Money > Monthly books. Review the selected month's INR payments;
+self-transfers and foreign-currency rows are excluded explicitly. Switch months,
+search merchant/reference/note, or filter Unreviewed, All, Business, Personal or
+Needs Evidence. Monthly results are not truncated to the latest 2,000 rows.
+After importing a statement, Review monthly books opens its latest imported month.
+
+Each row offers Personal, 100% Business or Split. The split sheet has 0/50/100
+presets, a slider, exact percentage entry (two decimal places) and a business
+purpose note. Percentages use integer basis points. Business paise are rounded
+once, half up, without multiplying the full amount into an overflowing integer.
+Net business outflow is reviewed business debits less reviewed business credits,
+using each row's split; it is a cashflow measure, not a tax deduction or profit.
+
+After reviewing a merchant, the inline Always use this split action saves an exact
+normalized merchant rule. Rules also work with Unicode merchant names, normalize
+case/common separators, and do not use substring/fuzzy matching. New debit payments
+from CSV, SMS/email ingestion and manual entry can use the saved rule. Credits,
+self-transfers, non-INR rows and already reviewed classifications are not changed.
+Rules can be forgotten, or explicitly applied to existing unreviewed monthly rows.
+Deleting a rule does not undo existing reviews. Classification and transaction
+business-use fields update in the same transaction, preserving GST eligibility.
+
+Evidence drawer
+Tapping Match invoice evidence opens a focused bottom sheet. Suggestions are
+deterministic: remaining amount, date proximity and vendor-token overlap, with
+reasons and stable tie-breaking. Search by vendor or invoice number. Suggestions
+never create an automatic link. Exact amounts can be linked with one tap; Change
+amount supports partial allocations. One payment may cover several invoices and
+several payments may settle one invoice. Adding to an existing allocation updates
+it without creating duplicate rows. Unlinking and re-linking are audited.
+
+Credits are explicitly allocated as refunds, against a paid invoice balance or
+a credit note; they are not treated as supplier payments. Removing a payment that
+still supports refunds is blocked until the refund links are removed. A credit's
+general business classification can be recorded, but a receivables/income-invoice
+workflow is not included in this expense-evidence milestone.
+
+The link service re-reads balances inside a DB transaction, preventing stale
+suggestions from over-allocating. It requires an INR business payment outside
+self-transfers, confirmed bank details, consistent invoice arithmetic and an
+authenticated original PDF. Missing/tampered PDF bytes prevent the link and keep
+the existing ledger and file. Flagged bank rows require explicit owner confirmation.
+
+Evidence Matched means allocations cover the full gross payment and the invoices
+have consistent arithmetic. A 50% business share still requires evidence for the
+full payment; the split is a separate fact. GST credit eligibility remains a
+separate field, with no automatic upgrade from not assessed. No Tax Approved label.
+The label describes the saved verified link; 1C export must re-verify attachments.
+
+Invoice details
+The invoice library lists the encrypted PDFs from 1A and lets the founder attach
+another PDF, record its printed vendor/number/date/type and exact taxable value,
+CGST, SGST, IGST, cess, rounding and total, then edit those details later. Optional
+GSTIN inputs are checked for structure/checksum, not government registration.
+Header tax components must sum exactly to the printed total. The PDF is
+authenticated before saving. The same PDF cannot acquire a second invoice record.
+Existing itemised invoices cannot have their headers silently changed while their
+lines remain inconsistent; header editing is blocked for those records.
+Recording manual details does not pretend OCR or CA review happened.
+
+Integrity and existing app integration
+Schema 6 changes only the business-use audit trigger; it creates no replacement
+tables and performs no ledger reset. The upgrade is transactional and preserves
+v5 IDs, amounts, notes, classifications, rules, links and previous audit events.
+Classification/rule/allocation edits retain the append-only JSON audit triggers.
+Rule-created business-use changes carry rule provenance rather than claiming a
+human made them. Derived evidence statuses can be rebuilt from links and invoices.
+
+Existing Activity delete/merge actions reject removal of a payment with evidence;
+the UI explains how to unlink it in Monthly books. Transfer and currency changes
+cannot silently hide a reviewed business payment. Merging away a reviewed row is
+blocked; merge the unreviewed duplicate into the reviewed payment to keep its review.
+Amount edits refresh evidence
+status, while the DB guards prevent reducing amounts below existing allocations.
+Edit failures keep the editor open with an actionable message. Automatic transfer
+detection does not reclassify a payment already linked to invoice evidence.
+
+Design and verification approach
+Reused the 1A neutral light/dark financial theme, tabular figures and Indian paise
+formatting. Selected chips and sliders use neutral ink rather than template blue.
+Emerald is used for Evidence Matched; amber for pending review/evidence; crimson
+for mismatches/errors. Compact summary, scrollable filters, lazy payment rows and
+focused drawers preserve room for the actual review controls on a phone.
+The workspace and drawer were rendered and inspected in light/dark phone layouts,
+including 320px width with 150% text. PNGs: ../kankoo-m1b-previews/.
+
+New files
+lib/data/db/business_review.dart
+lib/reconciliation/reconciliation_service.dart
+lib/features/reconciliation/reconciliation_providers.dart
+lib/features/reconciliation/reconciliation_widgets.dart
+lib/features/reconciliation/reconciliation_screen.dart
+lib/features/reconciliation/split_sheet.dart
+lib/features/reconciliation/evidence_sheet.dart
+lib/features/reconciliation/invoice_editor.dart
+test/reconciliation_service_test.dart
+test/reconciliation_screen_test.dart
+
+Existing files inspected and modified for 1B
+lib/app.dart
+lib/data/db/database.dart
+lib/data/db/evidence_guards.dart
+lib/features/settings/settings_screen.dart
+lib/features/imports/statement_import_screen.dart
+lib/features/activity/transaction_sheet.dart
+lib/features/activity/edit_transaction_sheet.dart
+lib/ingestion/ingestion_service.dart
+lib/ingestion/statements/statement_importer.dart
+lib/ui/ledger_theme.dart
+test/currency_db_test.dart
+pubspec.yaml
+
+Additional existing files inspected
+lib/data/db/tables.dart
+lib/data/db/evidence_tables.dart
+lib/features/imports/statement_import_providers.dart
+lib/tax_checks/invoice_validation.dart
+lib/features/dashboard/dashboard_screen.dart
+lib/providers.dart
+test/statement_import_test.dart
+test/pdf_vault_test.dart
+test/statement_import_screen_test.dart
+
+Verification results
+Focused 1B suite: 25 tests passed (20 service/integration, 5 widget flows).
+Includes integer rounding/range, exact and Unicode merchant rules, CSV/SMS rule
+integration, preservation of user reviews, partial/combined/refund allocations,
+stale suggestion rejection, real encrypted PDF authentication, GST arithmetic,
+v5-to-v6 migration, existing edit/delete safeguards, 2,101-row monthly results and
+reactive classification updates. Widgets cover one-tap review, merchant memory,
+custom split, linking/unlinking, invalid/corrected invoice entry and large text.
+Full regression suite: 344 tests passed. After the final merge/name safeguards,
+the 25 focused 1B tests were rerun and passed again. Portable widget checks also
+passed with Flutter's default test font; visual runs loaded the real Roboto font.
+Static analysis: no errors or warnings; 54 informational Flutter Material import
+deprecations remain. git diff --check passed.
+Android arm64 debug APK build passed; refreshed after the final guard changes.
+Artifact: build/app/outputs/flutter-apk/app-debug.apk. This debug artifact is not
+a signed public upgrade for the existing release installation.
+No changes were pushed or published to GitHub in this milestone.
+
+Remaining limits
+No physical phone was connected for this run. Real Android picker, keyboard,
+Keystore/lock and interruption behavior still need device pilot testing.
+Invoice details are manual; OCR, an in-app PDF renderer and itemised line editing
+were not added. General accounts receivable and ITC assessment are outside 1B.
+PDF backup/portability remains blocked as documented in 1A; keep original PDFs.
+1C CA ZIP/Excel export, file manifest generation and complete portability are next.
+Milestone 2 durable native notification capture and subscription billing remain
+outside this milestone. No public release or production-readiness claim is made.

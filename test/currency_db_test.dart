@@ -18,6 +18,7 @@ import 'package:kankoo/llm/agent/finance_tools.dart';
 import 'package:kankoo/llm/llm_client.dart';
 import 'package:kankoo/providers.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'support/legacy_ledger.dart';
 
 AppDatabase memoryDb() => AppDatabase(DatabaseConnection(NativeDatabase.memory()));
 
@@ -37,7 +38,7 @@ void main() {
   setUp(() => driftRuntimeOptions.dontWarnAboutMultipleDatabases = true);
   tearDown(() => Currencies.home = 'INR');
 
-  test('v3 → v4 migration keeps every row and marks it INR', () async {
+  test('v3 → current migration keeps every row and marks it INR', () async {
     final dir = await Directory.systemTemp.createTemp('kankoo_mig4');
     final file = File('${dir.path}/db.sqlite');
     try {
@@ -45,6 +46,7 @@ void main() {
       final acct = await db.addAccount(name: 'HDFC', kind: AccountKind.bank, color: 1);
       final id = await db.addManual(amountMinor: 25000, direction: TxnDirection.debit, at: t0, accountId: acct);
       await db.setBudget(amountMinor: 1000000);
+      await makeV4Fixture(db);
       // Strip back to the v3 shape.
       for (final (table, col) in const [
         ('transactions', 'currency'),
@@ -64,7 +66,7 @@ void main() {
       expect((t.amountMinor, t.currency, t.convertedMinor, t.convertedCurrency), (25000, 'INR', null, null));
       expect((await db.allAccounts()).single.currency, 'INR');
       expect((await db.allBudgets()).single.currency, 'INR');
-      expect(await db.customSelect('PRAGMA user_version').map((r) => r.data.values.first).getSingle(), 4);
+      expect(await db.customSelect('PRAGMA user_version').map((r) => r.data.values.first).getSingle(), 6);
       await db.close();
     } finally {
       await dir.delete(recursive: true);

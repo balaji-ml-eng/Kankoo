@@ -37,6 +37,13 @@ class SettingsScreen extends ConsumerWidget {
               child: Text('Settings', style: context.text.headlineSmall),
             ),
             const SectionHeader('Sources'),
+            ListTile(
+              leading: const Icon(PhosphorIconsRegular.fileCsv),
+              title: const Text('Statements & evidence'),
+              subtitle: const Text('Import bank CSVs and keep invoice PDFs'),
+              trailing: const Icon(PhosphorIconsBold.caretRight, size: 16),
+              onTap: () => context.push('/statements/import'),
+            ),
             const _SmsCard(),
             const SizedBox(height: 10),
             const EmailSourceCard(),
@@ -44,6 +51,13 @@ class SettingsScreen extends ConsumerWidget {
             const LlmStatusCard(),
             const SizedBox(height: 20),
             const SectionHeader('Money'),
+            ListTile(
+              leading: const Icon(Icons.fact_check_outlined),
+              title: const Text('Monthly books'),
+              subtitle: const Text('Business splits, invoice evidence and merchant rules'),
+              trailing: const Icon(PhosphorIconsBold.caretRight, size: 16),
+              onTap: () => context.push('/reconciliation'),
+            ),
             AppCard(
               padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 8),
               child: Column(

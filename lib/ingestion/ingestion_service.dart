@@ -250,6 +250,7 @@ class IngestionService {
     if (account != null && !txn.transferHint) {
       await _detectSelfTransfer(id, txn, currency, account.id, categorizer.transferId);
     }
+    await db.applyBusinessRule(id);
   }
 
   Future<List<DedupCandidate>> _candidates(ParsedTxn t, String currency, (int, String)? converted) async {
@@ -391,6 +392,11 @@ class IngestionService {
         .toList();
     if (matches.length != 1) return;
     final other = matches.single;
+    if ((await (db.select(
+      db.paymentAllocations,
+    )..where((p) => p.transactionId.isIn([id, other.id]))).get()).isNotEmpty) {
+      return;
+    }
     await (db.update(db.transactions)..where((x) => x.id.isIn([id, other.id]))).write(
       TransactionsCompanion(
         isTransfer: const Value(true),

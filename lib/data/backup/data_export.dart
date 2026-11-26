@@ -111,6 +111,11 @@ class DataExport {
   // --------------------------------------------------------------- backup
 
   Future<Map<String, Object?>> backup() => db.transaction(() async {
+    if (await (db.select(db.documents)..limit(1)).getSingleOrNull() != null) {
+      throw const BackupFormatException(
+        'This ledger has encrypted PDF attachments. Full vault backup is not available in this milestone. Keep your original PDFs; a database-only backup would be incomplete.',
+      );
+    }
     final tables = <String, List<Map<String, Object?>>>{};
     for (final t in db.allTables) {
       final rows = await db.customSelect('SELECT * FROM "${t.actualTableName}"', readsFrom: {t}).get();
@@ -138,6 +143,8 @@ class DataExport {
     final (data, summary) = _validate(_decode(json));
     final tables = (data['tables']! as Map).cast<String, Object?>();
     await db.transaction(() async {
+      // DDL is transactional: a failed restore rolls the original guards back.
+      await db.suspendEvidenceGuardsForRestore();
       // Rows are inserted parent-first, but defer FK checks to commit anyway
       // so self/forward references (raw_messages → transactions) never trip.
       await db.customStatement('PRAGMA defer_foreign_keys = ON');
@@ -157,6 +164,13 @@ class DataExport {
           );
         }
       }
+      if (await (db.select(db.documents)..limit(1)).getSingleOrNull() != null) {
+        throw const BackupFormatException(
+          'This backup contains PDF vault metadata without the encrypted files. Restore a complete vault backup instead.',
+        );
+      }
+      await db.validateEvidenceIntegrity();
+      await db.installEvidenceGuards();
     });
     return summary;
   }
@@ -184,7 +198,7 @@ class DataExport {
     }
     final tables = data['tables'];
     if (tables is! Map) throw const BackupFormatException('The backup has no data.');
-    for (final name in requiredTables) {
+    for (final name in sv >= 5 ? db.allTables.map((t) => t.actualTableName) : requiredTables) {
       if (tables[name] is! List) throw BackupFormatException('The backup is incomplete (no "$name").');
     }
     final counts = <String, int>{};

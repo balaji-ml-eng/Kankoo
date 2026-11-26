@@ -4,10 +4,14 @@ import '../../core/currency.dart';
 import '../seed/default_categories.dart';
 import 'db_encryption.dart';
 import 'tables.dart';
+import 'evidence_tables.dart';
 
 export 'tables.dart';
+export 'evidence_tables.dart';
 
 part 'database.g.dart';
+part 'evidence_guards.dart';
+part 'business_review.dart';
 
 /// A transaction joined with its category for list display.
 class TxnView {
@@ -33,7 +37,27 @@ extension TxnMoney on Transaction {
   bool get isForeign => currency != Currencies.home;
 }
 
-@DriftDatabase(tables: [Accounts, Categories, Transactions, RawMessages, MerchantRules, Budgets])
+@DriftDatabase(
+  tables: [
+    Accounts,
+    Categories,
+    Transactions,
+    RawMessages,
+    MerchantRules,
+    Budgets,
+    ImportJobs,
+    Documents,
+    Invoices,
+    InvoiceLines,
+    SourceEvents,
+    Classifications,
+    BusinessRules,
+    PaymentAllocations,
+    ReviewEvents,
+    ExportRuns,
+    ExportItems,
+  ],
+)
 class AppDatabase extends _$AppDatabase {
   /// Without an [executor], opens the SQLCipher-encrypted `kankoo.sqlite`
   /// (migrating a plaintext one first) — see [openAppDatabase].
@@ -43,7 +67,7 @@ class AppDatabase extends _$AppDatabase {
   static const protectedCategories = {'Transfers', 'Other'};
 
   @override
-  int get schemaVersion => 4;
+  int get schemaVersion => 6;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -53,8 +77,9 @@ class AppDatabase extends _$AppDatabase {
       await customStatement('CREATE INDEX idx_txn_amount ON transactions (amount_minor, direction)');
       await customStatement('CREATE INDEX idx_txn_ref ON transactions (reference)');
       await _seedCategories();
+      await installEvidenceGuards();
     },
-    onUpgrade: (m, from, to) async {
+    onUpgrade: (m, from, to) => transaction(() async {
       // v3 first: later steps read categories with the new column.
       if (from < 3) {
         await m.addColumn(categories, categories.seedName);
@@ -76,7 +101,32 @@ class AppDatabase extends _$AppDatabase {
         await _addColumnIfMissing(m, accounts, accounts.currency);
         await _addColumnIfMissing(m, budgets, budgets.currency);
       }
-    },
+      if (from < 5) {
+        await m.alterTable(
+          TableMigration(transactions, newColumns: [transactions.businessUseBps, transactions.reviewStatus]),
+        );
+        for (final table in <TableInfo>[
+          importJobs,
+          documents,
+          invoices,
+          invoiceLines,
+          sourceEvents,
+          classifications,
+          businessRules,
+          paymentAllocations,
+          reviewEvents,
+          exportRuns,
+          exportItems,
+        ]) {
+          await m.createTable(table);
+        }
+        await installEvidenceGuards();
+      }
+      if (from < 6) {
+        await customStatement('DROP TRIGGER IF EXISTS audit_transaction_business_use');
+        await installEvidenceGuards();
+      }
+    }),
     beforeOpen: (details) async {
       await customStatement('PRAGMA foreign_keys = ON');
     },
@@ -280,6 +330,7 @@ class AppDatabase extends _$AppDatabase {
   });
 
   Future<void> deleteTxn(int id) => transaction(() async {
+    await _requireNoEvidence(id);
     await (update(rawMessages)..where((m) => m.transactionId.equals(id))).write(
       const RawMessagesCompanion(
         transactionId: Value(null),
@@ -292,6 +343,10 @@ class AppDatabase extends _$AppDatabase {
 
   /// User confirmed [fromId] is the same payment as [intoId].
   Future<void> mergeInto(int fromId, int intoId) => transaction(() async {
+    await _requireNoEvidence(fromId);
+    if (await (select(classifications)..where((c) => c.transactionId.equals(fromId))).getSingleOrNull() != null) {
+      throw StateError('Keep the reviewed payment. Open its unreviewed duplicate and merge that row into this one.');
+    }
     await (update(rawMessages)..where((m) => m.transactionId.equals(fromId))).write(
       RawMessagesCompanion(transactionId: Value(intoId), parseStatus: const Value(ParseStatus.merged)),
     );
@@ -301,12 +356,30 @@ class AppDatabase extends _$AppDatabase {
     )..where((t) => t.id.equals(intoId))).write(const TransactionsCompanion(status: Value(TxnStatus.confirmed)));
   });
 
-  Future<void> confirm(int id) => (update(transactions)..where((t) => t.id.equals(id))).write(
-    const TransactionsCompanion(status: Value(TxnStatus.confirmed), duplicateOfId: Value(null)),
-  );
+  Future<void> confirm(int id) => transaction(() async {
+    await (update(transactions)..where((t) => t.id.equals(id))).write(
+      const TransactionsCompanion(status: Value(TxnStatus.confirmed), duplicateOfId: Value(null)),
+    );
+    if (await (select(classifications)..where((c) => c.transactionId.equals(id))).getSingleOrNull() != null) {
+      await refreshEvidenceStatus(id);
+    }
+  });
 
-  Future<void> setTransfer(int id, bool value) =>
-      (update(transactions)..where((t) => t.id.equals(id))).write(TransactionsCompanion(isTransfer: Value(value)));
+  Future<void> _requireNoEvidence(int id) async {
+    if ((await (select(paymentAllocations)..where((p) => p.transactionId.equals(id))).get()).isNotEmpty) {
+      throw StateError('Unlink invoice evidence in Monthly books before removing or merging this payment.');
+    }
+  }
+
+  Future<void> setTransfer(int id, bool value) => transaction(() async {
+    final txn = await (select(transactions)..where((t) => t.id.equals(id))).getSingle();
+    if (value && txn.businessUseBps > 0) {
+      throw StateError(
+        'Unlink evidence and mark this payment personal in Monthly books before making it a self-transfer.',
+      );
+    }
+    await (update(transactions)..where((t) => t.id.equals(id))).write(TransactionsCompanion(isTransfer: Value(value)));
+  });
 
   Future<void> setNote(int id, String? note) =>
       (update(transactions)..where((t) => t.id.equals(id))).write(TransactionsCompanion(note: Value(note)));
@@ -352,6 +425,7 @@ class AppDatabase extends _$AppDatabase {
         transactionId: Value(id),
       ),
     );
+    await applyBusinessRule(id);
     return id;
   });
 
@@ -371,20 +445,29 @@ class AppDatabase extends _$AppDatabase {
     required int? accountId,
     required String? note,
     Value<int?> categoryId = const Value.absent(),
-  }) => (update(transactions)..where((t) => t.id.equals(id))).write(
-    TransactionsCompanion(
-      amountMinor: Value(amountMinor),
-      currency: currency,
-      convertedMinor: convertedMinor,
-      convertedCurrency: convertedCurrency,
-      direction: Value(direction),
-      occurredAt: Value(occurredAt),
-      merchant: Value(merchant),
-      accountId: Value(accountId),
-      note: Value(note),
-      categoryId: categoryId,
-    ),
-  );
+  }) => transaction(() async {
+    final existing = await (select(transactions)..where((t) => t.id.equals(id))).getSingle();
+    if (existing.businessUseBps > 0 && currency.present && currency.value != 'INR') {
+      throw StateError('Review this payment as personal in Monthly books before changing its currency.');
+    }
+    await (update(transactions)..where((t) => t.id.equals(id))).write(
+      TransactionsCompanion(
+        amountMinor: Value(amountMinor),
+        currency: currency,
+        convertedMinor: convertedMinor,
+        convertedCurrency: convertedCurrency,
+        direction: Value(direction),
+        occurredAt: Value(occurredAt),
+        merchant: Value(merchant),
+        accountId: Value(accountId),
+        note: Value(note),
+        categoryId: categoryId,
+      ),
+    );
+    if (await (select(classifications)..where((c) => c.transactionId.equals(id))).getSingleOrNull() != null) {
+      await refreshEvidenceStatus(id);
+    }
+  });
 
   /// Records what a foreign transaction came to in [currency] (normally
   /// the home currency), or clears it with a null [minor].
@@ -528,7 +611,21 @@ class AppDatabase extends _$AppDatabase {
 
   /// Wipes all imported data (keeps categories, accounts and learned rules).
   Future<void> resetImported() => transaction(() async {
+    // Refunds must be removed before the payments they reverse.
+    await (delete(paymentAllocations)..where((p) => p.kind.equals('refund'))).go();
+    await delete(paymentAllocations).go();
+    await delete(sourceEvents).go();
+    await delete(importJobs).go();
     await delete(rawMessages).go();
     await delete(transactions).go();
+    await into(reviewEvents).insert(
+      ReviewEventsCompanion.insert(
+        entityType: 'ledger',
+        entityId: 0,
+        action: 'reset_transactions',
+        beforeJson: '{}',
+        afterJson: '{}',
+      ),
+    );
   });
 }

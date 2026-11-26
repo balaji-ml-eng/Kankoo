@@ -13,6 +13,24 @@ import 'conversion_sheet.dart';
 import '../settings/manage_widgets.dart' show accountLabel;
 import 'edit_transaction_sheet.dart';
 
+Future<void> _saveLedgerChange(BuildContext context, Future<void> Function() action, {bool close = false}) async {
+  try {
+    await action();
+    if (close && context.mounted) Navigator.pop(context);
+  } catch (error) {
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          error is StateError
+              ? error.message.toString()
+              : 'This change conflicts with linked evidence. Review the links in Monthly books first.',
+        ),
+      ),
+    );
+  }
+}
+
 Future<void> showTransactionSheet(BuildContext context, int id) => showModalBottomSheet(
   context: context,
   isScrollControlled: true,
@@ -181,7 +199,7 @@ class TransactionSheet extends ConsumerWidget {
         SwitchListTile(
           contentPadding: const EdgeInsets.symmetric(horizontal: 4),
           value: t.isTransfer,
-          onChanged: (v) => db.setTransfer(id, v),
+          onChanged: (v) => _saveLedgerChange(context, () => db.setTransfer(id, v)),
           title: const Text('Transfer between my accounts'),
           subtitle: const Text('Excluded from spending and income'),
           secondary: const Icon(PhosphorIconsRegular.arrowsLeftRight),
@@ -210,8 +228,7 @@ class TransactionSheet extends ConsumerWidget {
               ),
             );
             if (ok == true && context.mounted) {
-              Navigator.pop(context);
-              await db.deleteTxn(id);
+              await _saveLedgerChange(context, () => db.deleteTxn(id), close: true);
             }
           },
           icon: const Icon(PhosphorIconsRegular.trash),
@@ -262,8 +279,7 @@ class _DuplicatePanel extends ConsumerWidget {
                   onPressed: other == null
                       ? null
                       : () async {
-                          Navigator.pop(context);
-                          await db.mergeInto(id, otherId);
+                          await _saveLedgerChange(context, () => db.mergeInto(id, otherId), close: true);
                         },
                   child: const Text('Merge'),
                 ),
@@ -287,6 +303,7 @@ class _SourceCard extends StatelessWidget {
       SourceKind.email => PhosphorIconsFill.envelopeSimple,
       SourceKind.manual => PhosphorIconsFill.pencilSimple,
       SourceKind.shortcut => PhosphorIconsFill.lightning,
+      SourceKind.statement => PhosphorIconsFill.bank,
     };
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
