@@ -76,8 +76,7 @@ jobs:
           running=no; xcrun simctl spawn "$SIMULATOR_UDID" launchctl list | grep -q com.kankoo.kankoo && running=yes
           xcrun simctl io "$SIMULATOR_UDID" screenshot startup.png || true
           ready=no; grep -q 'saved settings ready' launch.log && ready=yes
-          lines=$(grep 'kankoo-startup' launch.log | head -8 | tr '
-' '|')
+          lines=$(grep 'kankoo-startup' launch.log | head -8 | paste -sd'|' -)
           echo "::notice title=ios-launch::running=$running settingsReady=$ready $lines"
           [ $running = yes ] && [ $ready = yes ]
       - uses: actions/upload-artifact@v4
