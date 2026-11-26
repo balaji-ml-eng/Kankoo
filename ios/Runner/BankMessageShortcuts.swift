@@ -4,6 +4,7 @@ import Foundation
 
 enum ShortcutInbox {
     static let enabledKey = "kankoo.shortcuts.enabled"
+    static let errorKey = "kankoo.shortcuts.lastError"
     static let changed = Notification.Name("KankooShortcutInboxChanged")
     static let store = MessageInbox(
         directory: FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
@@ -68,11 +69,19 @@ final class ShortcutInboxBridge {
             do {
                 switch call.method {
                 case "status":
-                    result(["enabled": ShortcutInbox.enabled, "pendingCount": try await ShortcutInbox.store.pendingCount()])
+                    var status: [String: Any] = ["enabled": ShortcutInbox.enabled, "pendingCount": try await ShortcutInbox.store.pendingCount()]
+                    if let error = UserDefaults.standard.string(forKey: ShortcutInbox.errorKey) { status["lastError"] = error }
+                    result(status)
                 case "setEnabled":
                     guard let enabled = call.arguments as? Bool else { throw ShortcutSetupError.notEnabled }
                     if enabled { try await ShortcutInbox.store.prepare() }
                     UserDefaults.standard.set(enabled, forKey: ShortcutInbox.enabledKey)
+                    UserDefaults.standard.removeObject(forKey: ShortcutInbox.errorKey)
+                    result(nil)
+                case "enqueue":
+                    guard ShortcutInbox.enabled else { throw ShortcutSetupError.notEnabled }
+                    guard let arguments = call.arguments as? [String: Any], let text = arguments["text"] as? String else { throw InboxError.invalidMessage }
+                    try await ShortcutInbox.store.enqueue(text: text, sender: arguments["sender"] as? String)
                     result(nil)
                 case "pending":
                     let batch = try await ShortcutInbox.store.pending()
@@ -90,6 +99,39 @@ final class ShortcutInboxBridge {
             } catch {
                 result(FlutterError(code: "SHORTCUT_INBOX", message: error.localizedDescription, details: nil))
             }
+        }
+    }
+}
+
+enum ShortcutURLForwarder {
+    static func accepts(_ url: URL) -> Bool { url.scheme?.lowercased() == "kankoo" && url.host?.lowercased() == "ingest" }
+    static func decode(_ url: URL) throws -> (text: String, sender: String?) {
+        guard accepts(url), let components = URLComponents(url: url, resolvingAgainstBaseURL: false) else { throw InboxError.invalidMessage }
+        var fields: [String: String] = [:]
+        for pair in (components.percentEncodedQuery ?? "").split(separator: "&") {
+            let parts = pair.split(separator: "=", maxSplits: 1, omittingEmptySubsequences: false)
+            guard parts.count == 2,
+                  let key = String(parts[0]).replacingOccurrences(of: "+", with: " ").removingPercentEncoding,
+                  let value = String(parts[1]).replacingOccurrences(of: "+", with: " ").removingPercentEncoding,
+                  fields[key] == nil else { throw InboxError.invalidMessage }
+            fields[key] = value
+        }
+        guard let text = fields["text"], !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { throw InboxError.invalidMessage }
+        return (text, fields["sender"])
+    }
+    /// Called natively for both cold and warm scene URLs, before Flutter routing.
+    static func capture(_ url: URL) {
+        guard accepts(url) else { return }
+        Task {
+            do {
+                guard ShortcutInbox.enabled else { throw ShortcutSetupError.notEnabled }
+                let fields = try decode(url)
+                try await ShortcutInbox.store.enqueue(text: fields.text, sender: fields.sender)
+                UserDefaults.standard.removeObject(forKey: ShortcutInbox.errorKey)
+            } catch {
+                UserDefaults.standard.set(error.localizedDescription, forKey: ShortcutInbox.errorKey)
+            }
+            NotificationCenter.default.post(name: ShortcutInbox.changed, object: nil)
         }
     }
 }

@@ -36,9 +36,9 @@
 			</array>
 		</dict>
 	</array>
-	<!-- Flutter forwards opened URLs to Dart, where IncomingShares claims kankoo:// links. -->
+	<!-- SceneDelegate persists shortcut URLs before Flutter routing, including cold launches. -->
 	<key>FlutterDeepLinkingEnabled</key>
-	<true/>
+	<false/>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>NSFaceIDUsageDescription</key>

@@ -37,7 +37,16 @@ class SettingsScreen extends ConsumerWidget {
               child: Text('Settings', style: context.text.headlineSmall),
             ),
             const SectionHeader('Sources'),
-            const _SmsCard(),
+            if (ref.watch(shortcutsInboxProvider).isSupported)
+              ListTile(
+                leading: const Icon(Icons.shortcut),
+                title: const Text('iPhone Shortcuts'),
+                subtitle: const Text('Forward bank alerts into your encrypted inbox'),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () => context.push('/shortcuts'),
+              )
+            else
+              const _SmsCard(),
             const SizedBox(height: 10),
             const EmailSourceCard(),
             const SizedBox(height: 10),

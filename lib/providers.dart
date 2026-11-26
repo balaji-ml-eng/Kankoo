@@ -6,6 +6,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'core/format.dart';
 import 'core/secrets.dart';
+import 'core/security/app_lock.dart';
+import 'ingestion/share/shortcuts_inbox.dart';
 import 'data/db/database.dart';
 import 'ingestion/ingestion_service.dart';
 import 'ingestion/parser/email_parser.dart';
@@ -272,35 +274,76 @@ final smsAlertsProvider = NotifierProvider<SmsAlertsController, bool>(SmsAlertsC
 
 /// Ingests text shared to Kankoo (share sheet, kankoo://ingest links) through
 /// the normal pipeline. State is the latest outcome, for a snackbar.
+final shortcutsInboxProvider = Provider<ShortcutsInbox>((ref) => const ShortcutsInbox());
+final incomingSharesProvider = Provider((ref) => IncomingShares.instance);
+
 class ShareIntakeController extends Notifier<ShareOutcome?> {
   bool _busy = false;
+  bool _rerun = false;
 
   @override
   ShareOutcome? build() {
-    final sub = IncomingShares.instance.onPending.listen((_) => _process());
+    final sub = ref.read(incomingSharesProvider).onPending.listen((_) => _process());
     ref.onDispose(sub.cancel);
+    ref.listen(appLockProvider.select((s) => s.locked), (_, locked) {
+      if (!locked) Future.microtask(_process);
+    });
+    ref.listen(onboardedProvider, (_, ready) {
+      if (ready) Future.microtask(_process);
+    });
     Future.microtask(_process);
     return null;
   }
 
   Future<void> _process() async {
-    if (_busy) return;
+    if (!ref.mounted ||
+        !ref.read(onboardedProvider) ||
+        ref.read(appLockProvider).locked ||
+        WidgetsBinding.instance.lifecycleState != AppLifecycleState.resumed)
+      return;
+    if (_busy) {
+      _rerun = true;
+      return;
+    }
     _busy = true;
+    _rerun = false;
+    final shares = ref.read(incomingSharesProvider);
     try {
-      while (IncomingShares.instance.hasPending) {
-        for (final s in IncomingShares.instance.drain()) {
-          try {
-            state = await ingestShared(ref.read(ingestionProvider), s);
-          } catch (e, st) {
-            debugPrint('Shared text ingest failed: $e\n$st');
-            state = ShareOutcome(ShareOutcomeKind.unreadable, reason: '$e');
-          }
+      await shares.refreshNative();
+      while (shares.hasPending &&
+          ref.mounted &&
+          ref.read(onboardedProvider) &&
+          !ref.read(appLockProvider).locked &&
+          WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed) {
+        final s = shares.takeNext();
+        try {
+          final outcome = await ingestShared(ref.read(ingestionProvider), s);
+          await shares.acknowledge(s);
+          if (ref.mounted) state = outcome;
+        } catch (e) {
+          shares.retryLater(s);
+          debugPrint('Shared text ingest failed (${e.runtimeType})');
+          if (ref.mounted)
+            state = const ShareOutcome(
+              ShareOutcomeKind.unreadable,
+              reason: 'Import could not finish. Forwarded iPhone messages stay encrypted for retry.',
+            );
         }
       }
+    } catch (e) {
+      debugPrint('Shortcut inbox unavailable (${e.runtimeType})');
+      if (ref.mounted)
+        state = const ShareOutcome(
+          ShareOutcomeKind.unreadable,
+          reason: 'The encrypted iPhone inbox could not be opened. Unlock the phone and retry. Files were kept.',
+        );
     } finally {
       _busy = false;
+      if (_rerun && ref.mounted) Future.microtask(_process);
     }
   }
+
+  Future<void> retryPending() => _process();
 }
 
 final shareIntakeProvider = NotifierProvider<ShareIntakeController, ShareOutcome?>(ShareIntakeController.new);
