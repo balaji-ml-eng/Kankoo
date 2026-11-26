@@ -60,7 +60,8 @@ GitHub Actions .github/workflows/ios.yml uses a macOS runner and Xcode 26.3
 (connectivity_plus 7.3.2 references an iOS 26 SDK API). The deployment target
 remains iOS 17; compiling with a newer SDK does not require iOS 26 to install.
 The workflow runs native inbox tests, Flutter analysis/tests, an unsigned
-iPhone release build, a simulator build and native simulator XCTest coverage.
+iPhone release build, a simulator build, native simulator XCTest coverage and
+a Flutter integration test of the real bridge, Keychain and SQLCipher ledger.
 Its unsigned .app artifact cannot be installed directly on a physical iPhone.
 Apple signing/provisioning is still needed for device installs or TestFlight.
 No signing credentials are stored in this branch.
