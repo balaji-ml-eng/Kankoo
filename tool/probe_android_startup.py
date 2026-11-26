@@ -37,4 +37,9 @@ print(json.dumps(summary, indent=2))
 for line in logs.splitlines():
     if any(marker in line for marker in ['kankoo-startup', 'FATAL EXCEPTION', 'E/flutter', 'dlopen failed', 'UnsatisfiedLinkError', 'Impeller', 'Could not load', 'Dart Error']):
         print(line[:1000])
+keys = ['kankoo-startup', 'FATAL EXCEPTION', 'E/flutter', 'PlatformException', 'channel-error', 'Error registering plugin', 'GeneratedPluginRegistrant', 'shared_preferences', 'datastore', 'ClassNotFound', 'NoSuchMethod', 'AndroidRuntime']
+picked = [l[:400] for l in logs.splitlines() if any(k in l for k in keys)][:60]
+msg = '%0A'.join(x.replace('%', '%25').replace('', '') for x in picked)
+print('::error title=startup-log-api' + summary['api'] + '::' + msg[:6000])
+print('::error title=summary-api' + summary['api'] + '::' + json.dumps(summary))
 assert summary['processAlive'] and summary['firstFrame'], 'Published APK did not reach its first Flutter frame; inspect logs and screenshots'

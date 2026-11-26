@@ -2,7 +2,7 @@ name: Published APK runtime probe
 
 on:
   push:
-    branches: [fix/android-startup-runtime]
+    branches: [diag/startup-error]
   workflow_dispatch:
 
 permissions:
