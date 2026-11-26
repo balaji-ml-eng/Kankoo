@@ -1,0 +1,52 @@
+KANKOO: INSTALLING THE IPHONE TEST IPA
+
+This is an unsigned iOS 17+ arm64 release IPA prepared for signing/installing
+with AltStore Classic. It is not an App Store or TestFlight release. The IPA
+has the normal Payload/Runner.app layout, native Shortcuts action metadata and
+SQLCipher library. Packaging validation does not prove installation on a real
+iPhone; the signer and real bank-message automation still need device testing.
+
+WINDOWS COMPUTER + IPHONE
+1. Use AltStore Classic and AltServer from the official AltStore website.
+   Follow its Windows guide, including its Apple iTunes/iCloud prerequisites:
+   https://faq.altstore.io/altstore-classic/how-to-install-altstore-windows
+2. Connect the unlocked iPhone by USB and trust your own computer. Follow the
+   guide to enable Wi-Fi sync and install AltStore using your own Apple account.
+   Enter account credentials only into the official tool, never send them to
+   the Kankoo developer or paste them into chat.
+3. Trust your own developer account in iPhone Settings > General > VPN & Device
+   Management. Enable Developer Mode in Settings > Privacy & Security when
+   required, then complete the requested restart/confirmation.
+4. Download kankoo-ios-1.0.3-sideload.ipa onto the iPhone. While AltServer is
+   available to the phone, open AltStore > My Apps > + and select that IPA.
+   AltStore signs the app using your account and installs it. Wait for completion.
+5. Open Kankoo. First use sample expense data. In Settings > iPhone Shortcuts,
+   enable forwarding and confirm the Forward bank message action appears in
+   Apple Shortcuts. Follow IOS_SHORTCUTS.txt and verify exact amounts in Activity.
+   If signing changes the bundle identity and the native action is missing,
+   report it before relying on automation. The kankoo:// URL fallback opens the
+   app and may need unlocking. Do not run both routes for the same message.
+6. With a free Apple account, refresh in AltStore > My Apps > Refresh All before
+   the seven-day expiry. Keep AltServer available for refresh. AltStore can try
+   background refresh, but check the remaining days rather than assume it worked.
+   Expiry stops opening the app until refreshed. Do not uninstall to refresh.
+   Make Kankoo backups, and keep using the same Apple account/app identity for
+   updates to avoid changing access to the app's existing storage and keys.
+
+Each friend signs using their own account/device setup. They do not need a paid
+developer membership for this free-account test route. It has Apple's free
+signing limits (including AltStore's documented three sideloaded-app limit).
+This route is for initial testing; an App Store release is planned after real
+iPhone acceptance checks. No lifetime or automatic refresh guarantee is made.
+
+Official AltStore documentation:
+https://faq.altstore.io/altstore-classic/your-altstore
+https://faq.altstore.io/altstore-classic/how-to-install-altstore-macos
+
+BUILDING AN IPA WITHOUT A MAC AT HOME
+Run the iPhone sideload IPA workflow on feature/ios-support. It builds on a
+GitHub macOS runner without Apple credentials, packages the release app, and
+verifies bundle identity, arm64 architecture, iOS minimum, Shortcuts metadata,
+SQLCipher, AOT app framework and archive integrity. The artifact includes the
+IPA and a SHA-256 checksum. Signing happens later on the tester's computer.
+The full iOS build checks workflow also packages the same IPA format.

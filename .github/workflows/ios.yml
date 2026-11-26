@@ -36,11 +36,13 @@ jobs:
       - name: Build unsigned iPhone app
         run: flutter build ios --release --no-codesign --no-pub
       - name: Package unsigned build
-        run: ditto -c -k --sequesterRsrc --keepParent build/ios/iphoneos/Runner.app build/ios/Kankoo-unsigned.app.zip
+        run: python3 scripts/package_ios_ipa.py build/ios/iphoneos/Runner.app build/ios/kankoo-ios-1.0.3-sideload.ipa
       - uses: actions/upload-artifact@v4
         with:
-          name: Kankoo-iOS-unsigned
-          path: build/ios/Kankoo-unsigned.app.zip
+          name: Kankoo-iPhone-sideload-IPA
+          path: |
+            build/ios/kankoo-ios-1.0.3-sideload.ipa
+            build/ios/kankoo-ios-1.0.3-sideload.ipa.sha256
           retention-days: 7
       - name: Build iOS Simulator app
         run: flutter build ios --simulator --debug --no-pub
