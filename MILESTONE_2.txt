@@ -89,7 +89,7 @@ and provides retry plus access to parser outcomes. Disabling capture preserves
 already queued records and ledger evidence. Amber review notices explain
 interruption/missing evidence; no notification is labelled tax-approved.
 
-Verification (final emulator results recorded below when complete)
+Verification
 382 Flutter tests passed, including 8 new ingestion/provenance/rollback/replay
 tests and 5 widget flows. Tests cover exact paise, malformed batch rejection,
 atomic rollback, SMS deduplication, deletion tombstones, ignored/unreadable
@@ -111,7 +111,14 @@ not the persistent public-release key. It grants notification access, posts
 a synthetic alert through Android's actual notification service with no Activity,
 verifies the encrypted queue, runs the release-mode headless consumer, checks
 acknowledgement and confirms that the ledger is not plaintext SQLite.
-Android 11/API 30 and Android 15/API 35 runtime results: pending.
+Android 11/API 30 and Android 15/API 35 runtime results: PASSED in release/AOT
+mode, one real-notification/background-engine instrumentation test per emulator.
+The same run passed the universal debug APK build, ABI/JIT validation, static
+analysis, all 382 Flutter tests, native tests and release ABI/AOT validation.
+Runtime implementation tested: bb7ae5afefec7dd51c4aed195175d1ea3ac48bb5.
+Run: https://github.com/balaji-ml-eng/Kankoo/actions/runs/45803257679
+API 30 job: 139851701256. API 35 job: 139851701044. Build job: 139851700612.
+Only documentation was changed after this passing runtime implementation.
 
 Files
 android/app/src/main/kotlin/com/kankoo/kankoo/BankNotificationListener.kt

@@ -1,7 +1,7 @@
 <p align="center"><img src="assets/branding/kankoo-logo.svg" width="420" alt="Kankoo"></p>
 
 > **New CA evidence plan — development branch.**
-> `feature/ca-evidence-ledger` contains Milestones 1A, 1B, 1C and the Milestone 2 notification-capture implementation (schema 8).
+> `feature/ca-evidence-ledger` contains Milestones 1A, 1B, 1C and 2 (schema 8). Notification capture passed release-mode Android 11/15 emulator checks; physical-phone pilot testing remains pending.
 > Monthly CA ZIP exports are available under Monthly books > Export for CA. This branch inherits the common startup/build safeguards from `main`.
 > The downloadable 1.0.4 APK below is the separate `main` startup fix (schema 4); it does not include the new CA-plan features.
 > Development reports: [1A](MILESTONE_1A.txt), [1B](MILESTONE_1B.txt), [1C](MILESTONE_1C.txt) and [2](MILESTONE_2.txt).
