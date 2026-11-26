@@ -2,7 +2,7 @@ name: iOS build checks
 
 on:
   push:
-    branches: [feature/ios-support]
+    branches: [diag/ios-verify]
   workflow_dispatch:
 
 permissions:
@@ -64,6 +64,22 @@ jobs:
         timeout-minutes: 12
         run: |
           flutter test integration_test/ios_shortcuts_test.dart -d "$SIMULATOR_UDID" --no-pub --timeout 3m
+      # Open the real app (not a test harness) and confirm it gets past startup.
+      - name: Launch smoke test on simulator
+        if: always()
+        run: |
+          flutter build ios --simulator --debug --no-pub
+          xcrun simctl terminate "$SIMULATOR_UDID" com.kankoo.kankoo || true
+          xcrun simctl install "$SIMULATOR_UDID" build/ios/iphonesimulator/Runner.app
+          xcrun simctl launch --console-pty "$SIMULATOR_UDID" com.kankoo.kankoo > launch.log 2>&1 &
+          sleep 45
+          running=no; xcrun simctl spawn "$SIMULATOR_UDID" launchctl list | grep -q com.kankoo.kankoo && running=yes
+          xcrun simctl io "$SIMULATOR_UDID" screenshot startup.png || true
+          ready=no; grep -q 'saved settings ready' launch.log && ready=yes
+          lines=$(grep 'kankoo-startup' launch.log | head -8 | tr '
+' '|')
+          echo "::notice title=ios-launch::running=$running settingsReady=$ready $lines"
+          [ $running = yes ] && [ $ready = yes ]
       - uses: actions/upload-artifact@v4
         if: failure()
         with:
