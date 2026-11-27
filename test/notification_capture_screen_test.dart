@@ -94,9 +94,11 @@ void main() {
     tester,
   ) async {
     await mount(tester);
+    await capture(tester, 'notification-setup-light');
+    await tester.scrollUntilVisible(find.byType(SwitchListTile), 250, scrollable: find.byType(Scrollable).first);
     expect(tester.widget<SwitchListTile>(find.byType(SwitchListTile)).onChanged, isNull);
     expect(api.requests, 0);
-    await capture(tester, 'notification-setup-light');
+    await tester.scrollUntilVisible(find.text('PhonePe'), -250, scrollable: find.byType(Scrollable).first);
     await tap(tester, 'PhonePe');
     await tap(tester, 'Capture selected apps');
     expect(api.value.enabled, isTrue);

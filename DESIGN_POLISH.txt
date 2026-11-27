@@ -40,7 +40,17 @@ Verification
   (primarily the SDK's Material import deprecation). No migration of the
   existing Material imports was included in this visual change.
 - git diff --check: passed.
-- Release build and CI results recorded below after final validation.
+- Local Android arm64 release build: passed (84.3 MB). Architecture check
+  confirms the Flutter engine, AOT app and SQLCipher are present together.
+- Android CI run: https://github.com/balaji-ml-eng/Kankoo/actions/runs/45940964912
+  Tested implementation commit: 4597d36. Debug APK and ABI checks passed.
+  Initial run found a test that inspected an offscreen, lazily built switch;
+  it now scrolls before checking the disabled state. The API 30 native test
+  also failed while fetching its Robolectric dependency (HTTP I/O error).
+  Android API 35 passed its native unit build and release-mode notification
+  instrumentation smoke (OK, 1 test). With the scroll-aware test correction,
+  all 394 Flutter tests also passed locally without preview font loading.
+  Final runtime and follow-up validation results are recorded below.
 
 Previews
 docs/design/home-light.png
