@@ -59,23 +59,21 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     const LedgerWordmark(),
-                    const SizedBox(height: 40),
+                    const SizedBox(height: 28),
                     const LedgerEyebrow('Your business. Your books.'),
                     const SizedBox(height: 12),
                     Text('A clear month.\nA simpler handoff.', style: context.text.displaySmall),
                     const SizedBox(height: 14),
                     Text(
-                      'Bring your payments and invoices together. Review business use, keep the evidence, and prepare your monthly CA bundle.',
+                      'Import payments. Match invoices. Give your CA a month they can verify.',
                       style: context.text.bodyLarge?.copyWith(color: context.colors.onSurfaceVariant, height: 1.4),
                     ),
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 16),
+                    const LedgerEvidenceIllustration(),
+                    const SizedBox(height: 12),
                     const _Point(
                       icon: PhosphorIconsFill.shieldCheck,
                       text: 'Your ledger and invoice PDFs stay encrypted on this device.',
-                    ),
-                    const _Point(
-                      icon: PhosphorIconsFill.gitMerge,
-                      text: 'Review every split. Hand your CA the original evidence.',
                     ),
                     const SizedBox(height: 24),
                     const _CurrencyRow(),

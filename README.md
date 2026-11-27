@@ -5,7 +5,7 @@
 > Monthly CA ZIP exports are available under Monthly books > Export for CA. This branch inherits the common startup/build safeguards from `main`.
 > The downloadable 1.0.4 APK below is the separate `main` startup fix (schema 4); it does not include the new CA-plan features.
 > Development reports: [1A](MILESTONE_1A.txt), [1B](MILESTONE_1B.txt), [1C](MILESTONE_1C.txt) and [2](MILESTONE_2.txt).
-> UI update: `1.1.0-dev.5+11` adds the indigo/midnight design, founder Home and primary Books tab. See [design changes and validation](DESIGN_POLISH.txt), [Home preview](docs/design/home-light.png), [onboarding](docs/design/onboarding-light.png) and [large-text dark Books](docs/design/books-small-dark.png).
+> UI update: `1.1.0-dev.6+12` adds a custom Kankoo identity, mint classification progress, evidence artwork and clearer payment cards. See [latest visual refinement](DESIGN_REFINEMENT.txt), [Home](docs/design/home-light.png), [dark Home](docs/design/home-dark.png), [onboarding](docs/design/onboarding-light.png) and [Books](docs/design/books-light.png). Earlier design and CI history is in [the initial report](DESIGN_POLISH.txt).
 
 <p align="center"><b>A free, open-source finance tracker that fills itself in.</b></p>
 

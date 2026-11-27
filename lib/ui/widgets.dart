@@ -6,7 +6,6 @@ import '../core/format.dart';
 import '../core/money_minor.dart';
 import 'ledger_theme.dart';
 import '../core/theme/category_icons.dart';
-import '../core/theme/palette.dart';
 import '../data/db/database.dart';
 
 extension ThemeX on BuildContext {
@@ -16,28 +15,36 @@ extension ThemeX on BuildContext {
   bool get isDark => Theme.of(this).brightness == Brightness.dark;
 }
 
-/// Rounded-square icon tile tinted with the category color.
+/// Category glyph or merchant initial, with a consistent brand tint.
 class CategoryBadge extends StatelessWidget {
-  const CategoryBadge({super.key, this.category, this.size = 44, this.isTransfer = false});
+  const CategoryBadge({super.key, this.category, this.size = 44, this.isTransfer = false, this.monogram});
 
   final Category? category;
   final double size;
   final bool isTransfer;
+  final String? monogram;
 
   @override
   Widget build(BuildContext context) {
-    final color = context.colors.onSurfaceVariant;
+    final color = isTransfer ? context.colors.onSurfaceVariant : context.colors.primary;
     final icon = isTransfer ? PhosphorIconsFill.arrowsLeftRight : CategoryIcons.of(category?.icon);
     return Container(
       width: size,
       height: size,
       decoration: BoxDecoration(
-        color: context.colors.surface,
-        border: Border.all(color: context.colors.outlineVariant),
+        color: isTransfer ? context.colors.surface : context.colors.secondaryContainer,
         borderRadius: BorderRadius.circular(size * 0.28),
       ),
       alignment: Alignment.center,
-      child: Icon(icon, color: color, size: size * 0.5),
+      child: category == null && !isTransfer && monogram != null
+          ? ExcludeSemantics(
+              child: Text(
+                monogram!,
+                textScaler: TextScaler.noScaling,
+                style: TextStyle(color: color, fontSize: size * .38, fontWeight: FontWeight.w700),
+              ),
+            )
+          : Icon(icon, color: color, size: size * 0.5),
     );
   }
 }
@@ -159,7 +166,12 @@ class TransactionTile extends StatelessWidget {
             return Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                CategoryBadge(category: view.category, isTransfer: t.isTransfer, size: 40),
+                CategoryBadge(
+                  category: view.category,
+                  isTransfer: t.isTransfer,
+                  size: 40,
+                  monogram: txnTitle(t).characters.firstOrNull?.toUpperCase() ?? 'K',
+                ),
                 const SizedBox(width: 12),
                 if (compact)
                   Expanded(
@@ -196,7 +208,9 @@ class ForeignAmountNote extends StatelessWidget {
     return Text(
       home == null ? 'not in totals' : '≈ ${money(home)}',
       style: (style ?? context.text.labelSmall)?.copyWith(
-        color: home == null ? Palette.amber : context.colors.onSurfaceVariant,
+        color: home == null
+            ? (context.isDark ? const Color(0xFFF2B45F) : const Color(0xFF94500A))
+            : context.colors.onSurfaceVariant,
         fontFeatures: const [FontFeature.tabularFigures()],
       ),
     );

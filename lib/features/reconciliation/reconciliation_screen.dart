@@ -7,6 +7,7 @@ import '../../core/money_minor.dart';
 import '../../data/db/database.dart';
 import '../../reconciliation/reconciliation_service.dart';
 import '../../ui/ledger_theme.dart';
+import '../../ui/ledger_brand.dart';
 import 'evidence_sheet.dart';
 import 'invoice_editor.dart';
 import 'reconciliation_providers.dart';
@@ -107,7 +108,10 @@ class _ReconciliationScreenState extends ConsumerState<ReconciliationScreen> {
         }).toList() ??
         [];
     return Scaffold(
-      appBar: AppBar(title: Text('Monthly books', style: theme.textTheme.titleMedium)),
+      appBar: AppBar(
+        title: Text('Monthly books', style: theme.textTheme.titleMedium),
+        actions: const [Padding(padding: EdgeInsets.only(right: 20), child: LedgerMark())],
+      ),
       body: SafeArea(
         top: false,
         child: Center(
@@ -151,13 +155,12 @@ class _ReconciliationScreenState extends ConsumerState<ReconciliationScreen> {
                             ),
                           ],
                         ),
-                        const SizedBox(height: 8),
-                        Text('Review the split. Keep the evidence.', style: theme.textTheme.bodyMedium),
                         const SizedBox(height: 12),
                         Container(
-                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          padding: const EdgeInsets.all(18),
                           decoration: BoxDecoration(
-                            border: Border.symmetric(horizontal: BorderSide(color: theme.colorScheme.outlineVariant)),
+                            color: theme.colorScheme.secondaryContainer,
+                            borderRadius: BorderRadius.circular(18),
                           ),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -384,9 +387,12 @@ class _ReconciliationScreenState extends ConsumerState<ReconciliationScreen> {
     final busy = _busy != null;
     return Container(
       key: ValueKey('review-row-${t.id}'),
-      padding: const EdgeInsets.symmetric(vertical: 20),
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        border: Border(bottom: BorderSide(color: theme.colorScheme.outlineVariant)),
+        color: theme.colorScheme.surface,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: theme.colorScheme.outlineVariant),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,

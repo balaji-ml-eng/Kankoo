@@ -41,11 +41,13 @@ class _Sms extends SmsSource {
 void main() {
   void designTest(String name, WidgetTesterCallback body) {
     testWidgets(name, (tester) async {
+      final semantics = tester.ensureSemantics();
       try {
         await body(tester);
       } finally {
         await tester.pumpWidget(const SizedBox.shrink());
         await flush(tester);
+        semantics.dispose();
       }
     });
   }
@@ -164,7 +166,7 @@ void main() {
   designTest('home reflects real review counts and routes directly to bank checks', (tester) async {
     await seed(tester);
     await mount(tester);
-    expect(find.text('3 of 4 INR payments classified. Self-transfers excluded.'), findsOneWidget);
+    expect(find.bySemanticsLabel('3 of 4 INR payments classified. Self-transfers excluded.'), findsOneWidget);
     expect(find.text('₹2,180.00'), findsOneWidget);
     expect(find.text('1 still to review'), findsOneWidget);
     expect(find.text('1 business payment needs attention'), findsOneWidget);
@@ -182,6 +184,16 @@ void main() {
     await tap(tester, 'Import your first statement');
     expect(find.text('Statements & evidence'), findsOneWidget);
     expect(sms.requests, 0);
+    expect(tester.takeException(), isNull);
+  });
+  designTest('dark founder overview retains classification progress and direct review', (tester) async {
+    await seed(tester);
+    await mount(tester, dark: true);
+    expect(find.text('3/4'), findsOneWidget);
+    await capture(tester, 'home-dark');
+    await tap(tester, 'Classify payments');
+    expect(find.text('Amazon Web Services'), findsOneWidget);
+    expect(find.text('Studio workspace'), findsNothing);
     expect(tester.takeException(), isNull);
   });
   designTest('onboarding offers CSV first without requesting SMS access', (tester) async {

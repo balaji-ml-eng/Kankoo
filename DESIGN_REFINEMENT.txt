@@ -1,0 +1,49 @@
+Kankoo - distinctive visual refinement
+2026-11-27 | feature/ca-evidence-ledger | 1.1.0-dev.6+12 | schema 8
+
+Direction
+Indigo and midnight with a restrained mint accent, a custom Kankoo mark,
+and an evidence-led visual identity. This pass follows the request for a
+more distinctive premium design after the initial interface polish.
+
+Implemented
+- Original vector K mark with a mint evidence dot. Drawn locally with no
+  network fonts, downloaded artwork or additional package.
+- Home has a compact financial summary and a mint classification ring.
+  The ring reports actual reviewed/total INR rows, with a screen-reader
+  description. Large text and narrow widths use a readable text summary.
+- Tighter month navigation and task rows bring recent payments into the
+  first screen at the 390x844 fixture size. Task icons and count badges
+  provide distinct entry points for classification, evidence and bank checks.
+- Books has a tonal monthly summary and separate payment cards. Existing
+  classification, rules, splits and evidence actions are retained.
+- Onboarding has original statement-to-evidence artwork and shorter copy.
+  The artwork is decorative and contains no sample financial figures.
+- Activity uses branded merchant initials for uncategorised transactions,
+  keeping transfer/category icons where relevant. Foreign-amount warnings
+  use contrasting amber text in both themes.
+- Rounded action shapes align with the new mark and payment panels.
+
+Reviewable renders
+docs/design/home-light.png
+docs/design/home-dark.png
+docs/design/onboarding-light.png
+docs/design/books-light.png
+docs/design/books-small-dark.png
+These render the implemented app widgets using synthetic local ledger data.
+
+Validation
+- Full Flutter regression with default test fonts: 395 passed.
+- Visual journey with real preview fonts: 13 passed.
+- Analyzer: no errors or warnings; 63 existing informational notices.
+- git diff --check: passed.
+- Android arm64 release APK: built successfully (84.3 MB).
+- APK architecture verification: Flutter engine, AOT app and SQLCipher
+  present together for arm64-v8a.
+The visual journey includes dark-mode progress navigation, screen-reader
+labels and the existing 320px / 150% text checks in both themes.
+
+Limits
+Physical-phone readability, touch, keyboard and pilot acceptance remain
+pending. Earlier Android runtime and CI history is in DESIGN_POLISH.txt;
+those runs are not represented as validation of this newer visual commit.

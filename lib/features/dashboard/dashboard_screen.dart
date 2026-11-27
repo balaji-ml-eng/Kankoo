@@ -28,7 +28,6 @@ class DashboardScreen extends ConsumerWidget {
     final bankChecks = rows
         .where((r) => r.transaction.status == TxnStatus.needsReview || r.status == 'Mismatch')
         .length;
-    final classified = rows.where((r) => r.reviewed).length;
     final period = DateFormat('yyyy-MM').format(month);
     void books(String filter) => context.go('/books?month=$period&filter=${Uri.encodeQueryComponent(filter)}');
     return Scaffold(
@@ -49,7 +48,7 @@ class DashboardScreen extends ConsumerWidget {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const LedgerWordmark(),
+                        const Flexible(child: LedgerWordmark()),
                         IconButton.outlined(
                           tooltip: 'Add transaction',
                           onPressed: () => showAddTransactionSheet(context),
@@ -57,13 +56,13 @@ class DashboardScreen extends ConsumerWidget {
                         ),
                       ],
                     ),
-                    const SizedBox(height: 28),
+                    const SizedBox(height: 20),
                     Row(
                       children: [
                         Expanded(
                           child: Text(
                             DateFormat('MMMM yyyy').format(month),
-                            style: Theme.of(context).textTheme.headlineMedium,
+                            style: Theme.of(context).textTheme.titleLarge,
                           ),
                         ),
                         IconButton(
@@ -80,7 +79,7 @@ class DashboardScreen extends ConsumerWidget {
                         ),
                       ],
                     ),
-                    const SizedBox(height: 18),
+                    const SizedBox(height: 14),
                     review.when(
                       loading: () => const _ReviewLoading(),
                       error: (_, _) => AppCard(
@@ -113,13 +112,14 @@ class DashboardScreen extends ConsumerWidget {
                     ),
                     const SizedBox(height: 20),
                     if (snapshot != null && rows.isNotEmpty) ...[
-                      const LedgerEyebrow('Your next steps'),
+                      const LedgerEyebrow('Finish your month'),
                       const SizedBox(height: 12),
                       AppCard(
                         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
                         child: Column(
                           children: [
                             _MonthTask(
+                              icon: Icons.tune_rounded,
                               title: 'Classify payments',
                               detail: unreviewed == 0
                                   ? 'Every payment has a business split'
@@ -129,6 +129,7 @@ class DashboardScreen extends ConsumerWidget {
                             ),
                             const Divider(height: 1),
                             _MonthTask(
+                              icon: Icons.description_outlined,
                               title: 'Complete the evidence',
                               detail: missing == 0
                                   ? 'No business payment is missing evidence'
@@ -139,6 +140,7 @@ class DashboardScreen extends ConsumerWidget {
                             if (bankChecks > 0) ...[
                               const Divider(height: 1),
                               _MonthTask(
+                                icon: Icons.shield_outlined,
                                 title: 'Check bank details',
                                 detail: '$bankChecks flagged or inconsistent payment${bankChecks == 1 ? '' : 's'}',
                                 count: bankChecks,
@@ -148,17 +150,7 @@ class DashboardScreen extends ConsumerWidget {
                           ],
                         ),
                       ),
-                      const SizedBox(height: 12),
-                      Text(
-                        '$classified of ${rows.length} INR payments classified. Self-transfers excluded.',
-                        style: Theme.of(context).textTheme.bodySmall,
-                      ),
-                      const SizedBox(height: 7),
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(3),
-                        child: LinearProgressIndicator(value: classified / rows.length, minHeight: 3),
-                      ),
-                      const SizedBox(height: 22),
+                      const SizedBox(height: 16),
                     ],
                     Wrap(
                       spacing: 10,
@@ -186,7 +178,7 @@ class DashboardScreen extends ConsumerWidget {
                         child: const Text('Set up automatic capture'),
                       ),
                     ],
-                    const SizedBox(height: 26),
+                    const SizedBox(height: 18),
                     Row(
                       children: [
                         const Expanded(child: LedgerEyebrow('Recent payments')),
@@ -246,9 +238,11 @@ class _OutflowPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     const ink = LedgerColors.midnight, paper = Color(0xFFF4F5F7);
+    final classified = snapshot.rows.where((r) => r.reviewed).length;
+    final total = snapshot.rows.length;
     final text = Theme.of(context).textTheme;
     return Container(
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
           begin: Alignment.topLeft,
@@ -265,23 +259,84 @@ class _OutflowPanel extends StatelessWidget {
             'NET BUSINESS OUTFLOW',
             style: text.labelSmall?.copyWith(color: paper.withValues(alpha: 0.7), letterSpacing: 1.7),
           ),
-          const SizedBox(height: 14),
-          Semantics(
-            label: 'Net business outflow ${formatInrMinor(snapshot.businessTotal)}',
-            child: ExcludeSemantics(
-              child: FittedBox(
-                fit: BoxFit.scaleDown,
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  formatInrMinor(snapshot.businessTotal),
-                  style: text.displayMedium?.copyWith(color: paper, fontWeight: FontWeight.w500),
-                ),
+          const SizedBox(height: 12),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final compact = MediaQuery.textScalerOf(context).scale(14) > 18 || constraints.maxWidth < 280;
+              final amount = Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Semantics(
+                    label: 'Net business outflow ${formatInrMinor(snapshot.businessTotal)}',
+                    child: ExcludeSemantics(
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          formatInrMinor(snapshot.businessTotal),
+                          style: text.displayMedium?.copyWith(color: paper, fontWeight: FontWeight.w500),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    'Current business splits \u00b7 INR',
+                    style: text.bodySmall?.copyWith(color: const Color(0xFFBAC9EB)),
+                  ),
+                ],
+              );
+              return Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Expanded(child: amount),
+                  if (total > 0 && !compact) ...[
+                    const SizedBox(width: 16),
+                    Semantics(
+                      container: true,
+                      label: '$classified of $total INR payments classified. Self-transfers excluded.',
+                      child: ExcludeSemantics(
+                        child: SizedBox(
+                          width: 64,
+                          height: 64,
+                          child: Stack(
+                            alignment: Alignment.center,
+                            children: [
+                              SizedBox.expand(
+                                child: CircularProgressIndicator(
+                                  value: classified / total,
+                                  strokeWidth: 4,
+                                  strokeCap: StrokeCap.round,
+                                  backgroundColor: Colors.white.withValues(alpha: 0.12),
+                                  color: const Color(0xFFC3F0DE),
+                                ),
+                              ),
+                              Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text('$classified/$total', style: text.titleSmall?.copyWith(color: paper)),
+                                  Text('classified', style: text.labelSmall?.copyWith(color: paper)),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              );
+            },
+          ),
+          if (total > 0 && (MediaQuery.textScalerOf(context).scale(14) > 18 || MediaQuery.sizeOf(context).width < 360))
+            Padding(
+              padding: const EdgeInsets.only(top: 12),
+              child: Text(
+                '$classified of $total INR payments classified. Self-transfers excluded.',
+                style: text.bodySmall?.copyWith(color: const Color(0xFFBAC9EB)),
               ),
             ),
-          ),
-          const SizedBox(height: 8),
-          Text('Current business splits · INR', style: text.bodySmall?.copyWith(color: paper.withValues(alpha: 0.7))),
-          const SizedBox(height: 24),
+          const SizedBox(height: 18),
           FilledButton.icon(
             onPressed: onContinue,
             style: FilledButton.styleFrom(backgroundColor: paper, foregroundColor: ink),
@@ -295,7 +350,14 @@ class _OutflowPanel extends StatelessWidget {
 }
 
 class _MonthTask extends StatelessWidget {
-  const _MonthTask({required this.title, required this.detail, required this.count, required this.onTap});
+  const _MonthTask({
+    required this.icon,
+    required this.title,
+    required this.detail,
+    required this.count,
+    required this.onTap,
+  });
+  final IconData icon;
   final String title, detail;
   final int count;
   final VoidCallback onTap;
@@ -304,17 +366,23 @@ class _MonthTask extends StatelessWidget {
     onTap: onTap,
     borderRadius: BorderRadius.circular(12),
     child: Padding(
-      padding: const EdgeInsets.symmetric(vertical: 17),
+      padding: const EdgeInsets.symmetric(vertical: 11),
       child: Row(
         children: [
-          SizedBox(
-            width: 30,
+          Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.secondaryContainer,
+              borderRadius: BorderRadius.circular(11),
+            ),
             child: Icon(
-              count == 0 ? Icons.check_circle_outline : Icons.circle_outlined,
-              size: 20,
-              color: count == 0 ? Theme.of(context).colorScheme.onSurfaceVariant : LedgerColors.review,
+              count == 0 ? Icons.check_rounded : icon,
+              size: 18,
+              color: Theme.of(context).colorScheme.primary,
             ),
           ),
+          const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -325,8 +393,23 @@ class _MonthTask extends StatelessWidget {
               ],
             ),
           ),
-          const SizedBox(width: 12),
-          const Icon(Icons.arrow_forward_ios, size: 13),
+          const SizedBox(width: 10),
+          if (count > 0)
+            Container(
+              constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.secondaryContainer,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                '$count',
+                style: Theme.of(context).textTheme.labelMedium?.copyWith(color: Theme.of(context).colorScheme.primary),
+              ),
+            ),
+          const SizedBox(width: 8),
+          const Icon(Icons.chevron_right_rounded, size: 18),
         ],
       ),
     ),

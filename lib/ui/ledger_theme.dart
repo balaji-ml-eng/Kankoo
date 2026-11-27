@@ -146,7 +146,7 @@ ThemeData ledgerTheme(Brightness brightness) {
       secondaryLabelStyle: type(12, FontWeight.w600, color: brand),
       checkmarkColor: brand,
       side: BorderSide(color: line),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
     ),
     sliderTheme: base.sliderTheme.copyWith(
       activeTrackColor: brand,
@@ -178,7 +178,7 @@ ThemeData ledgerTheme(Brightness brightness) {
         foregroundColor: onBrand,
         minimumSize: const Size(0, 52),
         textStyle: type(14, FontWeight.w600),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
       ),
     ),
     outlinedButtonTheme: OutlinedButtonThemeData(
@@ -186,7 +186,7 @@ ThemeData ledgerTheme(Brightness brightness) {
         foregroundColor: brand,
         minimumSize: const Size(0, 48),
         side: BorderSide(color: line),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
       ),
     ),
     textButtonTheme: TextButtonThemeData(style: TextButton.styleFrom(foregroundColor: brand)),
