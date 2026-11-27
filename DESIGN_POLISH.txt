@@ -52,6 +52,25 @@ Verification
   all 394 Flutter tests also passed locally without preview font loading.
   Final runtime and follow-up validation results are recorded below.
 
+Follow-up CI
+https://github.com/balaji-ml-eng/Kankoo/actions/runs/45942179984
+Commit: 8ad8744 (app code identical to 4597d36; test/documentation correction).
+Build job passed: analyzer, debug APK, architecture checks and all 394
+Flutter tests on Linux. The corrected capture test passed in CI.
+The API 35 retry stopped before test execution: Maven Central returned
+HTTP 429 Too Many Requests downloading
+org.robolectric:nativeruntime-dist-compat:1.0.18. No application change is
+being made to work around this external dependency rate limit.
+API 30 passed its native unit build and release-mode notification smoke
+(OK, 1 test) in the follow-up run. Thus both Android 11 and Android 15 have
+passing release-runtime results for the identical application code, across
+the two runs. The latest aggregate run remains red solely because the API
+35 retry hit the external Maven download limit; it is not reported as an
+all-green run. No further dependency-download retries were made.
+
+Local arm64 release APK SHA-256:
+09c4df6d46694ca74d00836101bd3e546aab5643c240c7dc198e68371d4c243d
+
 Previews
 docs/design/home-light.png
 docs/design/onboarding-light.png
