@@ -41,7 +41,22 @@ Widget evidenceBadge(BuildContext context, String status) {
     'Needs Evidence' || 'Needs review' || 'Unreviewed' => LedgerColors.review,
     _ => Theme.of(context).colorScheme.onSurfaceVariant,
   };
-  return Text(status, style: Theme.of(context).textTheme.labelMedium?.copyWith(color: color));
+  final dark = Theme.of(context).brightness == Brightness.dark;
+  final textColor = switch (status) {
+    'Evidence Matched' => dark ? const Color(0xFF75DAD0) : const Color(0xFF0B7166),
+    'Unreviewed' || 'Needs Evidence' || 'Needs review' => dark ? const Color(0xFFF2B45F) : const Color(0xFF94500A),
+    'Mismatch' => dark ? const Color(0xFFFFA49B) : const Color(0xFFB42318),
+    _ => color,
+  };
+  return Container(
+    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+    decoration: BoxDecoration(
+      color: color.withValues(alpha: 0.06),
+      border: Border.all(color: color.withValues(alpha: 0.25)),
+      borderRadius: BorderRadius.circular(6),
+    ),
+    child: Text(status, style: Theme.of(context).textTheme.labelMedium?.copyWith(color: textColor)),
+  );
 }
 
 Future<T?> showLedgerSheet<T>(BuildContext context, Widget child) => showModalBottomSheet<T>(

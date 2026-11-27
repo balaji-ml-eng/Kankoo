@@ -58,11 +58,17 @@ class SettingsScreen extends ConsumerWidget {
             const SizedBox(height: 20),
             const SectionHeader('Money'),
             ListTile(
+              leading: const Icon(Icons.insights_outlined),
+              title: const Text('Spending insights'),
+              subtitle: const Text('Trends, budgets and recurring payments'),
+              onTap: () => context.push('/insights'),
+            ),
+            ListTile(
               leading: const Icon(Icons.fact_check_outlined),
               title: const Text('Monthly books'),
               subtitle: const Text('Business splits, invoice evidence and merchant rules'),
               trailing: const Icon(PhosphorIconsBold.caretRight, size: 16),
-              onTap: () => context.push('/reconciliation'),
+              onTap: () => context.go('/books'),
             ),
             AppCard(
               padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 8),

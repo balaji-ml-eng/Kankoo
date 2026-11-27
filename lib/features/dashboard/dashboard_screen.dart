@@ -1,96 +1,234 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 
-import '../../core/theme/icons.dart';
-
-import '../../core/format.dart';
-import '../../core/theme/palette.dart';
+import '../../core/money_minor.dart';
+import '../../data/db/database.dart';
 import '../../providers.dart';
+import '../../reconciliation/reconciliation_service.dart';
+import '../../ui/ledger_brand.dart';
+import '../../ui/ledger_theme.dart';
 import '../../ui/widgets.dart';
 import '../activity/transaction_sheet.dart';
-import '../budgets/budget_widgets.dart';
-import '../stats.dart';
-import 'category_donut.dart';
-import 'hero_card.dart';
+import '../activity/add_transaction_sheet.dart';
+import '../reconciliation/reconciliation_providers.dart';
 
 class DashboardScreen extends ConsumerWidget {
   const DashboardScreen({super.key});
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final month = ref.watch(selectedMonthProvider);
-    final txns = ref.watch(monthTxnsProvider);
-    final sync = ref.watch(smsSyncProvider);
-    final review = ref.watch(reviewCountProvider).value ?? 0;
-
+    final review = ref.watch(reconciliationMonthProvider(month));
+    final payments = ref.watch(monthTxnsProvider);
+    final snapshot = review.value;
+    final rows = snapshot?.rows ?? const <ReviewRow>[];
+    final unreviewed = rows.where((r) => !r.reviewed).length;
+    final missing = snapshot?.needsEvidence ?? 0;
+    final bankChecks = rows
+        .where((r) => r.transaction.status == TxnStatus.needsReview || r.status == 'Mismatch')
+        .length;
+    final classified = rows.where((r) => r.reviewed).length;
+    final period = DateFormat('yyyy-MM').format(month);
+    void books(String filter) => context.go('/books?month=$period&filter=${Uri.encodeQueryComponent(filter)}');
     return Scaffold(
       body: SafeArea(
         bottom: false,
         child: RefreshIndicator(
-          onRefresh: () => ref.read(smsSyncProvider.notifier).sync(),
+          onRefresh: () async {
+            ref.invalidate(reconciliationMonthProvider(month));
+            ref.invalidate(monthTxnsProvider);
+            if (ref.read(smsSyncProvider).enabled) await ref.read(smsSyncProvider.notifier).sync();
+          },
           child: CustomScrollView(
             slivers: [
-              SliverToBoxAdapter(
-                child: _Header(month: month, syncing: sync.running),
-              ),
-              ...txns.when(
-                loading: () => [const SliverFillRemaining(child: Center(child: CircularProgressIndicator()))],
-                error: (e, _) => [SliverFillRemaining(child: Center(child: Text('$e')))],
-                data: (list) {
-                  final stats = MonthStats(list, month);
-                  return [
-                    SliverPadding(
-                      padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-                      sliver: SliverList.list(
-                        children: [
-                          HeroCard(stats: stats, month: month),
-                          const SizedBox(height: 12),
-                          BudgetCard(hasSpending: stats.spent > 0),
-                          if (review > 0) ...[const SizedBox(height: 12), _ReviewBanner(count: review)],
-                          if (stats.unconverted > 0) ...[
-                            const SizedBox(height: 12),
-                            _ForeignBanner(count: stats.unconverted),
-                          ],
-                          if (!sync.enabled && list.isEmpty) ...[const SizedBox(height: 12), const _ConnectSmsCard()],
-                          const SizedBox(height: 20),
-                          if (stats.categories.isNotEmpty) ...[
-                            const SectionHeader('Where it went'),
-                            CategoryDonutCard(stats: stats),
-                            const SizedBox(height: 20),
-                          ],
-                          SectionHeader(
-                            'Recent',
-                            action: list.isEmpty ? null : 'See all',
-                            onAction: () => context.go('/activity'),
+              SliverPadding(
+                padding: const EdgeInsets.fromLTRB(20, 18, 20, 0),
+                sliver: SliverList.list(
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const LedgerWordmark(),
+                        IconButton.outlined(
+                          tooltip: 'Add transaction',
+                          onPressed: () => showAddTransactionSheet(context),
+                          icon: const Icon(Icons.add, size: 20),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 28),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            DateFormat('MMMM yyyy').format(month),
+                            style: Theme.of(context).textTheme.headlineMedium,
                           ),
-                        ],
+                        ),
+                        IconButton(
+                          tooltip: 'Previous month',
+                          onPressed: () => ref.read(selectedMonthProvider.notifier).shift(-1),
+                          icon: const Icon(Icons.chevron_left),
+                        ),
+                        IconButton(
+                          tooltip: 'Next month',
+                          onPressed: ref.read(selectedMonthProvider.notifier).isCurrent
+                              ? null
+                              : () => ref.read(selectedMonthProvider.notifier).shift(1),
+                          icon: const Icon(Icons.chevron_right),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 18),
+                    review.when(
+                      loading: () => const _ReviewLoading(),
+                      error: (_, _) => AppCard(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('Your monthly review could not load.', style: Theme.of(context).textTheme.titleMedium),
+                            const SizedBox(height: 8),
+                            const Text('Your records are kept. Refresh to try again.'),
+                            TextButton(
+                              onPressed: () => ref.invalidate(reconciliationMonthProvider(month)),
+                              child: const Text('Retry monthly review'),
+                            ),
+                          ],
+                        ),
+                      ),
+                      data: (data) => _OutflowPanel(
+                        snapshot: data,
+                        onContinue: data.rows.isEmpty && payments.value?.isEmpty == true
+                            ? () => context.push('/statements/import')
+                            : () => books(
+                                unreviewed > 0
+                                    ? 'Unreviewed'
+                                    : missing > 0
+                                    ? 'Needs Evidence'
+                                    : 'All',
+                              ),
+                        empty: data.rows.isEmpty && payments.value?.isEmpty == true,
                       ),
                     ),
-                    if (list.isEmpty)
-                      const SliverToBoxAdapter(
-                        child: EmptyState(
-                          icon: PhosphorIconsFill.receipt,
-                          title: 'Nothing here yet',
-                          message:
-                              'Transactions from your bank SMS show up automatically. You can also add one with +.',
-                        ),
-                      )
-                    else
-                      SliverPadding(
-                        padding: const EdgeInsets.symmetric(horizontal: 8),
-                        sliver: SliverList.builder(
-                          itemCount: list.length.clamp(0, 8),
-                          itemBuilder: (_, i) => TransactionTile(
-                            view: list[i],
-                            showDate: true,
-                            onTap: () => showTransactionSheet(context, list[i].txn.id),
-                          ),
+                    const SizedBox(height: 20),
+                    if (snapshot != null && rows.isNotEmpty) ...[
+                      const LedgerEyebrow('Your next steps'),
+                      const SizedBox(height: 12),
+                      AppCard(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                        child: Column(
+                          children: [
+                            _MonthTask(
+                              title: 'Classify payments',
+                              detail: unreviewed == 0
+                                  ? 'Every payment has a business split'
+                                  : '$unreviewed still to review',
+                              count: unreviewed,
+                              onTap: () => books(unreviewed == 0 ? 'All' : 'Unreviewed'),
+                            ),
+                            const Divider(height: 1),
+                            _MonthTask(
+                              title: 'Complete the evidence',
+                              detail: missing == 0
+                                  ? 'No business payment is missing evidence'
+                                  : '$missing business payment${missing == 1 ? '' : 's'} need${missing == 1 ? 's' : ''} attention',
+                              count: missing,
+                              onTap: () => books(missing == 0 ? 'Business' : 'Needs Evidence'),
+                            ),
+                            if (bankChecks > 0) ...[
+                              const Divider(height: 1),
+                              _MonthTask(
+                                title: 'Check bank details',
+                                detail: '$bankChecks flagged or inconsistent payment${bankChecks == 1 ? '' : 's'}',
+                                count: bankChecks,
+                                onTap: () => books('Bank checks'),
+                              ),
+                            ],
+                          ],
                         ),
                       ),
-                    const SliverToBoxAdapter(child: SizedBox(height: 100)),
-                  ];
-                },
+                      const SizedBox(height: 12),
+                      Text(
+                        '$classified of ${rows.length} INR payments classified. Self-transfers excluded.',
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                      const SizedBox(height: 7),
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(3),
+                        child: LinearProgressIndicator(value: classified / rows.length, minHeight: 3),
+                      ),
+                      const SizedBox(height: 22),
+                    ],
+                    Wrap(
+                      spacing: 10,
+                      runSpacing: 10,
+                      children: [
+                        OutlinedButton.icon(
+                          onPressed: () => context.push('/statements/import'),
+                          icon: const Icon(Icons.upload_file_outlined, size: 18),
+                          label: const Text('Import statement'),
+                        ),
+                        OutlinedButton.icon(
+                          onPressed: () => context.push('/ca/export?month=$period'),
+                          icon: const Icon(Icons.folder_zip_outlined, size: 18),
+                          label: const Text('CA bundle'),
+                        ),
+                      ],
+                    ),
+                    if (snapshot != null && rows.isEmpty) ...[
+                      const SizedBox(height: 22),
+                      Text('Start with your bank statement', style: Theme.of(context).textTheme.titleMedium),
+                      const SizedBox(height: 6),
+                      const Text('Import a CSV, verify the balance, then decide what belongs to your business.'),
+                      TextButton(
+                        onPressed: () => context.push('/notifications'),
+                        child: const Text('Set up automatic capture'),
+                      ),
+                    ],
+                    const SizedBox(height: 26),
+                    Row(
+                      children: [
+                        const Expanded(child: LedgerEyebrow('Recent payments')),
+                        TextButton(onPressed: () => context.go('/activity'), child: const Text('View all')),
+                      ],
+                    ),
+                    payments.when(
+                      loading: () =>
+                          const Padding(padding: EdgeInsets.symmetric(vertical: 16), child: LinearProgressIndicator()),
+                      error: (_, _) => const Text('Payments could not load. Pull down to refresh.'),
+                      data: (list) => list.isEmpty
+                          ? Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 20),
+                              child: Text(
+                                'Your imported and manual payments will appear here.',
+                                style: Theme.of(context).textTheme.bodyMedium,
+                              ),
+                            )
+                          : Column(
+                              children: [
+                                for (final view in list.take(4)) ...[
+                                  TransactionTile(
+                                    view: view,
+                                    showDate: true,
+                                    onTap: () => showTransactionSheet(context, view.txn.id),
+                                  ),
+                                  const Divider(height: 1),
+                                ],
+                                if (list.any((v) => v.txn.currency != 'INR' || v.txn.isTransfer))
+                                  Padding(
+                                    padding: const EdgeInsets.only(top: 12),
+                                    child: Text(
+                                      'Foreign-currency and self-transfer rows remain visible in Activity. They are outside the INR business review.',
+                                      style: Theme.of(context).textTheme.bodySmall,
+                                    ),
+                                  ),
+                              ],
+                            ),
+                    ),
+                    const SizedBox(height: 110),
+                  ],
+                ),
               ),
             ],
           ),
@@ -100,167 +238,113 @@ class DashboardScreen extends ConsumerWidget {
   }
 }
 
-class _Header extends ConsumerWidget {
-  const _Header({required this.month, required this.syncing});
-
-  final DateTime month;
-  final bool syncing;
-
+class _OutflowPanel extends StatelessWidget {
+  const _OutflowPanel({required this.snapshot, required this.onContinue, required this.empty});
+  final ReviewSnapshot snapshot;
+  final VoidCallback onContinue;
+  final bool empty;
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final ctrl = ref.read(selectedMonthProvider.notifier);
-    final isCurrent = month == monthStart(DateTime.now());
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 12, 12, 4),
-      child: Row(
+  Widget build(BuildContext context) {
+    const ink = LedgerColors.midnight, paper = Color(0xFFF4F5F7);
+    final text = Theme.of(context).textTheme;
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [LedgerColors.midnight, Color(0xFF294376)],
+        ),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFF354D85)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(_greeting(), style: context.text.bodyMedium?.copyWith(color: context.colors.onSurfaceVariant)),
-                const SizedBox(height: 2),
-                Row(children: [Text(monthLabel(month), style: context.text.headlineSmall)]),
-              ],
+          Text(
+            'NET BUSINESS OUTFLOW',
+            style: text.labelSmall?.copyWith(color: paper.withValues(alpha: 0.7), letterSpacing: 1.7),
+          ),
+          const SizedBox(height: 14),
+          Semantics(
+            label: 'Net business outflow ${formatInrMinor(snapshot.businessTotal)}',
+            child: ExcludeSemantics(
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  formatInrMinor(snapshot.businessTotal),
+                  style: text.displayMedium?.copyWith(color: paper, fontWeight: FontWeight.w500),
+                ),
+              ),
             ),
           ),
-          IconButton(
-            tooltip: 'Previous month',
-            onPressed: () => ctrl.shift(-1),
-            icon: const Icon(PhosphorIconsBold.caretLeft, size: 20),
+          const SizedBox(height: 8),
+          Text('Current business splits · INR', style: text.bodySmall?.copyWith(color: paper.withValues(alpha: 0.7))),
+          const SizedBox(height: 24),
+          FilledButton.icon(
+            onPressed: onContinue,
+            style: FilledButton.styleFrom(backgroundColor: paper, foregroundColor: ink),
+            label: Text(empty ? 'Import your first statement' : 'Review this month'),
+            icon: const Icon(Icons.arrow_forward, size: 18),
           ),
-          IconButton(
-            tooltip: 'Next month',
-            onPressed: isCurrent ? null : () => ctrl.shift(1),
-            icon: const Icon(PhosphorIconsBold.caretRight, size: 20),
-          ),
-          _SyncButton(syncing: syncing),
         ],
       ),
     );
   }
-
-  String _greeting() {
-    final h = DateTime.now().hour;
-    return h < 12
-        ? 'Good morning'
-        : h < 17
-        ? 'Good afternoon'
-        : 'Good evening';
-  }
 }
 
-class _SyncButton extends ConsumerStatefulWidget {
-  const _SyncButton({required this.syncing});
-  final bool syncing;
-
-  @override
-  ConsumerState<_SyncButton> createState() => _SyncButtonState();
-}
-
-class _SyncButtonState extends ConsumerState<_SyncButton> with SingleTickerProviderStateMixin {
-  late final _spin = AnimationController(vsync: this, duration: const Duration(milliseconds: 900));
-
-  @override
-  void didUpdateWidget(_SyncButton old) {
-    super.didUpdateWidget(old);
-    widget.syncing ? _spin.repeat() : _spin.reset();
-  }
-
-  @override
-  void dispose() {
-    _spin.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) => IconButton.filledTonal(
-    tooltip: 'Sync SMS',
-    onPressed: widget.syncing ? null : () => ref.read(smsSyncProvider.notifier).sync(),
-    icon: RotationTransition(turns: _spin, child: const Icon(PhosphorIconsBold.arrowsClockwise, size: 20)),
-  );
-}
-
-class _ReviewBanner extends StatelessWidget {
-  const _ReviewBanner({required this.count});
+class _MonthTask extends StatelessWidget {
+  const _MonthTask({required this.title, required this.detail, required this.count, required this.onTap});
+  final String title, detail;
   final int count;
-
+  final VoidCallback onTap;
   @override
-  Widget build(BuildContext context) => AppCard(
-    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-    color: Palette.amber.withValues(alpha: context.isDark ? 0.12 : 0.16),
-    onTap: () => context.go('/activity?filter=review'),
-    child: Row(
-      children: [
-        const Icon(PhosphorIconsFill.warningCircle, color: Palette.amber),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Text(
-            '$count transaction${count == 1 ? '' : 's'} need${count == 1 ? 's' : ''} a quick look',
-            style: context.text.titleSmall?.copyWith(fontWeight: FontWeight.w600),
+  Widget build(BuildContext context) => InkWell(
+    onTap: onTap,
+    borderRadius: BorderRadius.circular(12),
+    child: Padding(
+      padding: const EdgeInsets.symmetric(vertical: 17),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 30,
+            child: Icon(
+              count == 0 ? Icons.check_circle_outline : Icons.circle_outlined,
+              size: 20,
+              color: count == 0 ? Theme.of(context).colorScheme.onSurfaceVariant : LedgerColors.review,
+            ),
           ),
-        ),
-        const Icon(PhosphorIconsBold.caretRight, size: 18),
-      ],
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title, style: Theme.of(context).textTheme.titleSmall),
+                const SizedBox(height: 3),
+                Text(detail, style: Theme.of(context).textTheme.bodySmall),
+              ],
+            ),
+          ),
+          const SizedBox(width: 12),
+          const Icon(Icons.arrow_forward_ios, size: 13),
+        ],
+      ),
     ),
   );
 }
 
-/// Foreign-currency payments this month that aren't in the totals yet.
-class _ForeignBanner extends StatelessWidget {
-  const _ForeignBanner({required this.count});
-  final int count;
-
+class _ReviewLoading extends StatelessWidget {
+  const _ReviewLoading();
   @override
   Widget build(BuildContext context) => AppCard(
-    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-    onTap: () => context.go('/activity?filter=foreign'),
-    child: Row(
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(PhosphorIconsFill.globeHemisphereWest, color: context.colors.onSurfaceVariant),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Text(
-            '$count payment${count == 1 ? '' : 's'} in other currencies not in these totals',
-            style: context.text.titleSmall?.copyWith(fontWeight: FontWeight.w600),
-          ),
-        ),
-        const Icon(PhosphorIconsBold.caretRight, size: 18),
-      ],
-    ),
-  );
-}
-
-class _ConnectSmsCard extends ConsumerWidget {
-  const _ConnectSmsCard();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) => AppCard(
-    onTap: () => context.go('/settings'),
-    child: Row(
-      children: [
-        Container(
-          padding: const EdgeInsets.all(10),
-          decoration: BoxDecoration(
-            color: Palette.mint.withValues(alpha: 0.15),
-            borderRadius: BorderRadius.circular(14),
-          ),
-          child: const Icon(PhosphorIconsFill.chatText, color: Palette.mint),
-        ),
-        const SizedBox(width: 14),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('Connect SMS', style: context.text.titleMedium),
-              Text(
-                'Track card, bank & UPI spends automatically',
-                style: context.text.bodySmall?.copyWith(color: context.colors.onSurfaceVariant),
-              ),
-            ],
-          ),
-        ),
-        const Icon(PhosphorIconsBold.caretRight, size: 18),
+        const LedgerEyebrow('Monthly review'),
+        const SizedBox(height: 24),
+        const LinearProgressIndicator(),
+        const SizedBox(height: 16),
+        Text('Loading your ledger…', style: Theme.of(context).textTheme.bodySmall),
       ],
     ),
   );

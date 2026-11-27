@@ -8,7 +8,7 @@ import '../../ingestion/email/email_sync.dart';
 import '../../ingestion/ingestion_service.dart';
 import '../../llm/llm_providers.dart';
 import '../../providers.dart';
-import '../activity/add_transaction_sheet.dart';
+import '../../ui/ledger_theme.dart';
 import 'share_outcome.dart';
 import '../budgets/budget_providers.dart';
 
@@ -71,51 +71,53 @@ class _HomeShellState extends ConsumerState<HomeShell> {
     ref.listen(budgetAlertsProvider, (_, _) {});
     return Scaffold(
       body: widget.shell,
-      floatingActionButton: index <= 1
-          ? FloatingActionButton(
-              onPressed: () => showAddTransactionSheet(context),
-              tooltip: 'Add transaction',
-              child: const Icon(PhosphorIconsBold.plus),
-            )
-          : null,
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: index,
-        onDestinationSelected: (i) => widget.shell.goBranch(i, initialLocation: i == index),
-        destinations: [
-          const NavigationDestination(
-            icon: Icon(PhosphorIconsRegular.house),
-            selectedIcon: Icon(PhosphorIconsFill.house),
-            label: 'Home',
-          ),
-          NavigationDestination(
-            icon: Badge(
-              isLabelVisible: review > 0,
-              label: Text('$review'),
-              child: const Icon(PhosphorIconsRegular.listBullets),
+      bottomNavigationBar: DecoratedBox(
+        decoration: BoxDecoration(
+          border: Border(top: BorderSide(color: Theme.of(context).colorScheme.outlineVariant)),
+        ),
+        child: NavigationBar(
+          selectedIndex: index,
+          onDestinationSelected: (i) => widget.shell.goBranch(i, initialLocation: i == index),
+          destinations: [
+            const NavigationDestination(
+              icon: Icon(PhosphorIconsRegular.house),
+              selectedIcon: Icon(PhosphorIconsFill.house),
+              label: 'Home',
             ),
-            selectedIcon: Badge(
-              isLabelVisible: review > 0,
-              label: Text('$review'),
-              child: const Icon(PhosphorIconsFill.listBullets),
+            NavigationDestination(
+              icon: Badge(
+                isLabelVisible: review > 0,
+                backgroundColor: LedgerColors.review,
+                textColor: const Color(0xFF17202B),
+                label: Text('$review'),
+                child: const Icon(PhosphorIconsRegular.listBullets),
+              ),
+              selectedIcon: Badge(
+                isLabelVisible: review > 0,
+                backgroundColor: LedgerColors.review,
+                textColor: const Color(0xFF17202B),
+                label: Text('$review'),
+                child: const Icon(PhosphorIconsFill.listBullets),
+              ),
+              label: 'Activity',
             ),
-            label: 'Activity',
-          ),
-          const NavigationDestination(
-            icon: Icon(PhosphorIconsRegular.chartPie),
-            selectedIcon: Icon(PhosphorIconsFill.chartPie),
-            label: 'Insights',
-          ),
-          const NavigationDestination(
-            icon: Icon(PhosphorIconsRegular.sparkle),
-            selectedIcon: Icon(PhosphorIconsFill.sparkle),
-            label: 'Ask',
-          ),
-          const NavigationDestination(
-            icon: Icon(PhosphorIconsRegular.gearSix),
-            selectedIcon: Icon(PhosphorIconsFill.gearSix),
-            label: 'Settings',
-          ),
-        ],
+            const NavigationDestination(
+              icon: Icon(Icons.receipt_long_outlined),
+              selectedIcon: Icon(Icons.receipt_long),
+              label: 'Books',
+            ),
+            const NavigationDestination(
+              icon: Icon(PhosphorIconsRegular.sparkle),
+              selectedIcon: Icon(PhosphorIconsFill.sparkle),
+              label: 'Ask',
+            ),
+            const NavigationDestination(
+              icon: Icon(PhosphorIconsRegular.gearSix),
+              selectedIcon: Icon(PhosphorIconsFill.gearSix),
+              label: 'Settings',
+            ),
+          ],
+        ),
       ),
     );
   }

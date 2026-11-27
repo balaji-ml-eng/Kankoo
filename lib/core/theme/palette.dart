@@ -5,21 +5,21 @@ import 'package:flutter/material.dart';
 abstract final class Palette {
   // Brand
   static const mint = Color(0xFF3DDC97);
-  static const violet = Color(0xFF8B7CF6);
+  static const violet = Color(0xFF3347A8);
   static const coral = Color(0xFFFF6B6B);
   static const amber = Color(0xFFFFB547);
 
   // Dark surfaces
-  static const ink = Color(0xFF0B0C10);
-  static const inkRaised = Color(0xFF14161C);
-  static const inkHigh = Color(0xFF1C1F27);
-  static const inkLine = Color(0xFF262A33);
+  static const ink = Color(0xFF0F1115);
+  static const inkRaised = Color(0xFF15181E);
+  static const inkHigh = Color(0xFF1D212A);
+  static const inkLine = Color(0xFF232730);
 
   // Light surfaces
-  static const paper = Color(0xFFF6F6F2);
+  static const paper = Color(0xFFF7F8FC);
   static const paperRaised = Color(0xFFFFFFFF);
-  static const paperHigh = Color(0xFFEDEDE7);
-  static const paperLine = Color(0xFFE2E2DA);
+  static const paperHigh = Color(0xFFF1F3F5);
+  static const paperLine = Color(0xFFE2E7F0);
 
   static const income = mint;
   static const expense = coral;
@@ -42,5 +42,5 @@ abstract final class Palette {
   static const neutral = Color(0xFF8A90A0);
 
   /// Gradient used on the hero card.
-  static const heroGradient = [Color(0xFF6D5DF6), Color(0xFF3B2FB8), Color(0xFF1E1A5E)];
+  static const heroGradient = [Color(0xFF17202B), Color(0xFF1D2939), Color(0xFF253546)];
 }

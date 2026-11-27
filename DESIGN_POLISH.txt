@@ -1,0 +1,58 @@
+Kankoo founder and CA interface polish
+Date: 2026-11-27
+Branch: feature/ca-evidence-ledger only
+Version: 1.1.0-dev.5+11; database schema remains 8
+
+Design
+- Indigo #3347A8 actions, midnight #1B2855 to #294376 summary panel,
+  cool #F7F8FC background, white panels and periwinkle selection states.
+- Dark mode uses #0F1115 backgrounds and #B2C0FF primary controls.
+- Emerald evidence, amber review and crimson mismatch statuses retain text
+  labels. Badge text uses contrasting shades checked against both themes.
+- One offline Roboto type system with tabular amounts, consistent spacing,
+  bordered panels and prominent primary actions. No new dependency.
+
+Workflow changes
+- Home shows current business splits, classification progress and direct
+  links to unreviewed payments, missing evidence and bank checks.
+- Books is a primary tab. Existing Insights stays available in Settings.
+- Home links update the month/filter even when Books was already open.
+- Manual entry is available in Home and Activity headers without covering
+  lower actions. Large INR amounts retain their exact paise and grouping.
+- Onboarding starts with bank CSV; SMS remains optional with its existing
+  permission, import, retry and skip behavior.
+- Notification setup separates app selection, Android access and capture.
+  The broad Android access disclosure stays visible before granting access.
+- CA export puts counts and saving first, with scope and verification
+  details expandable. The readable ZIP / incomplete-backup warning stays
+  visible before saving. Cancel, failure and save-result behavior is kept.
+- Books actions reflow at larger text sizes. Insights uses content-sized
+  statistics and stacks utility links on narrow screens to prevent clipping.
+
+Verification
+- Twelve added real-app widget checks cover populated/empty Home, CSV-first
+  onboarding, Books navigation and existing-tab filtering, secondary screens,
+  320 logical-pixel widths at 150% text in both themes, large exact amounts
+  and evidence badge text contrast (at least 4.5:1).
+- Existing SMS onboarding tests still exercise denied permission and retry.
+- Full Flutter regression: 394 passed.
+- Flutter analyzer: no errors or warnings; 63 informational notices remain
+  (primarily the SDK's Material import deprecation). No migration of the
+  existing Material imports was included in this visual change.
+- git diff --check: passed.
+- Release build and CI results recorded below after final validation.
+
+Previews
+docs/design/home-light.png
+docs/design/onboarding-light.png
+docs/design/books-small-dark.png
+These are renders of the implemented widgets using synthetic ledger data,
+not screenshots from a physical phone. The dark Books render deliberately
+uses 320px width and 150% text to demonstrate the accessible layout.
+
+Limits
+Physical-phone readability, gestures, keyboard interaction and founder/CA
+acceptance still require a pilot. This UI pass does not establish a market
+valuation or production readiness. Complete encrypted backup/restore,
+subscriptions and signed production update testing remain separate work.
+Main, iOS and startup-investigation branches are unchanged by this work.

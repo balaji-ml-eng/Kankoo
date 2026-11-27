@@ -53,9 +53,8 @@ class InsightsScreen extends ConsumerWidget {
             Row(
               children: [
                 const SizedBox(width: 4),
-                Expanded(child: Text('Insights', style: context.text.headlineSmall)),
+                Expanded(child: Text(monthLabel(month), style: context.text.headlineSmall)),
                 IconButton(onPressed: () => ctrl.shift(-1), icon: const Icon(PhosphorIconsBold.caretLeft, size: 20)),
-                Text(monthShort(month), style: context.text.titleMedium),
                 IconButton(
                   onPressed: month == monthStart(DateTime.now()) ? null : () => ctrl.shift(1),
                   icon: const Icon(PhosphorIconsBold.caretRight, size: 20),
@@ -63,46 +62,53 @@ class InsightsScreen extends ConsumerWidget {
               ],
             ),
             const SizedBox(height: 8),
-            GridView.count(
-              crossAxisCount: 2,
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              mainAxisSpacing: 10,
-              crossAxisSpacing: 10,
-              childAspectRatio: 1.55,
-              children: [
-                _StatTile(
-                  icon: PhosphorIconsFill.trendDown,
-                  label: 'vs last month',
-                  value: change == null ? '—' : '${change >= 0 ? '+' : '−'}${(change.abs() * 100).round()}%',
-                  tint: change == null
-                      ? null
-                      : change > 0
-                      ? Palette.coral
-                      : Palette.mint,
-                ),
-                _StatTile(
-                  icon: PhosphorIconsFill.piggyBank,
-                  label: 'Net saved',
-                  value: moneyCompact(cur.net),
-                  tint: cur.net >= 0 ? Palette.mint : Palette.coral,
-                ),
-                _StatTile(
-                  icon: PhosphorIconsFill.crown,
-                  label: 'Top category',
-                  value: cur.categories.firstOrNull?.category?.name ?? '—',
-                ),
-                _StatTile(
-                  icon: PhosphorIconsFill.receipt,
-                  label: 'Biggest spend',
-                  value: biggest == null ? '—' : moneyCompact(biggest.txn.homeMinor!),
-                ),
-              ],
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final columns = constraints.maxWidth < 340 || MediaQuery.textScalerOf(context).scale(14) > 18 ? 1 : 2;
+                final width = (constraints.maxWidth - (columns - 1) * 10) / columns;
+                return Wrap(
+                  spacing: 10,
+                  runSpacing: 10,
+                  children: [
+                    _StatTile(
+                      icon: PhosphorIconsFill.trendDown,
+                      label: 'vs last month',
+                      value: change == null ? '—' : '${change >= 0 ? '+' : '−'}${(change.abs() * 100).round()}%',
+                      tint: change == null
+                          ? null
+                          : change > 0
+                          ? Palette.coral
+                          : Palette.mint,
+                    ),
+                    _StatTile(
+                      icon: PhosphorIconsFill.piggyBank,
+                      label: 'Net saved',
+                      value: moneyCompact(cur.net),
+                      tint: cur.net >= 0 ? Palette.mint : Palette.coral,
+                    ),
+                    _StatTile(
+                      icon: PhosphorIconsFill.crown,
+                      label: 'Top category',
+                      value: cur.categories.firstOrNull?.category?.name ?? '—',
+                    ),
+                    _StatTile(
+                      icon: PhosphorIconsFill.receipt,
+                      label: 'Biggest spend',
+                      value: biggest == null ? '—' : moneyCompact(biggest.txn.homeMinor!),
+                    ),
+                  ].map((tile) => SizedBox(width: width, child: tile)).toList(),
+                );
+              },
             ),
             const SizedBox(height: 10),
-            Row(
+            Flex(
+              direction: MediaQuery.sizeOf(context).width < 360 || MediaQuery.textScalerOf(context).scale(14) > 18
+                  ? Axis.vertical
+                  : Axis.horizontal,
+              mainAxisSize: MainAxisSize.min,
               children: [
-                Expanded(
+                Flexible(
+                  fit: FlexFit.loose,
                   child: _LinkTile(
                     icon: PhosphorIconsFill.target,
                     title: 'Budgets',
@@ -110,8 +116,9 @@ class InsightsScreen extends ConsumerWidget {
                     onTap: () => context.push('/budgets'),
                   ),
                 ),
-                const SizedBox(width: 10),
-                Expanded(
+                const SizedBox(width: 10, height: 10),
+                Flexible(
+                  fit: FlexFit.loose,
                   child: _LinkTile(
                     icon: PhosphorIconsFill.repeat,
                     title: 'Recurring',
@@ -131,11 +138,11 @@ class InsightsScreen extends ConsumerWidget {
               padding: const EdgeInsets.fromLTRB(12, 18, 16, 12),
               child: Column(
                 children: [
-                  Row(
+                  Wrap(
+                    spacing: 16,
+                    runSpacing: 8,
                     children: [
-                      const SizedBox(width: 8),
                       _LegendDot(color: Palette.violet, label: 'Spent'),
-                      const SizedBox(width: 16),
                       _LegendDot(color: Palette.mint, label: 'Income'),
                     ],
                   ),
@@ -235,13 +242,8 @@ class _StatTile extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Icon(icon, size: 22, color: tint ?? Palette.violet),
-        const Spacer(),
-        Text(
-          value,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: context.text.titleLarge?.copyWith(fontFeatures: const [FontFeature.tabularFigures()]),
-        ),
+        const SizedBox(height: 12),
+        Text(value, style: context.text.titleLarge?.copyWith(fontFeatures: const [FontFeature.tabularFigures()])),
         Text(label, style: context.text.bodySmall?.copyWith(color: context.colors.onSurfaceVariant)),
       ],
     ),
@@ -255,6 +257,7 @@ class _LegendDot extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Row(
+    mainAxisSize: MainAxisSize.min,
     children: [
       Container(
         width: 10,

@@ -51,6 +51,13 @@ final _routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(path: '/email/connect', builder: (_, _) => const EmailConnectScreen()),
       GoRoute(path: '/notifications', builder: (_, _) => const NotificationCaptureScreen()),
+      GoRoute(
+        path: '/insights',
+        builder: (_, _) => Scaffold(
+          appBar: AppBar(title: const Text('Spending insights')),
+          body: const InsightsScreen(),
+        ),
+      ),
       GoRoute(path: '/llm', builder: (_, _) => const LlmSettingsScreen()),
       GoRoute(path: '/budgets', builder: (_, _) => const BudgetsScreen()),
       GoRoute(path: '/recurring', builder: (_, _) => const RecurringScreen()),
@@ -65,8 +72,11 @@ final _routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/reconciliation',
-        builder: (_, state) =>
-            ReconciliationScreen(initialMonth: DateTime.tryParse('${state.uri.queryParameters['month']}-01')),
+        builder: (_, state) => ReconciliationScreen(
+          key: ValueKey(state.uri.toString()),
+          initialMonth: DateTime.tryParse('${state.uri.queryParameters['month']}-01'),
+          initialFilter: state.uri.queryParameters['filter'],
+        ),
       ),
       GoRoute(path: '/settings/accounts', builder: (_, _) => const AccountsScreen()),
       GoRoute(path: '/settings/categories', builder: (_, _) => const CategoriesScreen()),
@@ -85,7 +95,17 @@ final _routerProvider = Provider<GoRouter>((ref) {
             ],
           ),
           StatefulShellBranch(
-            routes: [GoRoute(path: '/insights', builder: (_, _) => const InsightsScreen())],
+            routes: [
+              GoRoute(
+                path: '/books',
+                builder: (_, state) => ReconciliationScreen(
+                  key: ValueKey(state.uri.toString()),
+                  initialMonth:
+                      DateTime.tryParse('${state.uri.queryParameters['month']}-01') ?? ref.read(selectedMonthProvider),
+                  initialFilter: state.uri.queryParameters['filter'],
+                ),
+              ),
+            ],
           ),
           StatefulShellBranch(
             routes: [GoRoute(path: '/ask', builder: (_, _) => const AssistantScreen())],

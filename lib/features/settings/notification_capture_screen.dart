@@ -8,6 +8,8 @@ import 'package:intl/intl.dart';
 import '../../ingestion/notifications/notification_intake.dart';
 import '../../providers.dart';
 import '../../ui/ledger_theme.dart';
+import '../../ui/ledger_brand.dart';
+import '../../ui/widgets.dart';
 import '../reconciliation/reconciliation_widgets.dart';
 
 const notificationApps = {
@@ -130,6 +132,7 @@ class _NotificationCaptureScreenState extends ConsumerState<NotificationCaptureS
     child: Builder(
       builder: (context) {
         final api = ref.watch(notificationCaptureApiProvider), s = _state;
+        final theme = Theme.of(context);
         return Scaffold(
           appBar: AppBar(title: const Text('Notification capture')),
           body: SafeArea(
@@ -139,15 +142,15 @@ class _NotificationCaptureScreenState extends ConsumerState<NotificationCaptureS
                 child: ListView(
                   padding: const EdgeInsets.fromLTRB(20, 16, 20, 40),
                   children: [
-                    Text('Capture payment alerts', style: Theme.of(context).textTheme.headlineSmall),
-                    const SizedBox(height: 12),
-                    const Text(
-                      'Android notification access lets Kankoo receive notifications from your phone. Only apps you select below are saved. Notification text is encrypted on this device before it is processed.',
+                    const LedgerEyebrow('Automatic capture'),
+                    const SizedBox(height: 10),
+                    Text('Payment alerts,\nkept with your books.', style: theme.textTheme.headlineMedium),
+                    const SizedBox(height: 10),
+                    Text(
+                      'Encrypted on this device. You choose the apps.',
+                      style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
                     ),
-                    const SizedBox(height: 12),
-                    const Text(
-                      'Capture starts after you enable it and grant access. Android may delay background work. Force-stopping Kankoo, hidden notification text or disabled bank alerts can prevent capture; reconcile against your bank statement.',
-                    ),
+                    const SizedBox(height: 24),
                     if (!api.supported)
                       reviewNotice(
                         context,
@@ -156,87 +159,159 @@ class _NotificationCaptureScreenState extends ConsumerState<NotificationCaptureS
                     if (_error != null) reviewNotice(context, _error!, review: true),
                     if (api.supported && s == null && _error == null) const LinearProgressIndicator(),
                     if (s != null) ...[
-                      const SizedBox(height: 20),
-                      Text(
-                        s.accessGranted ? 'Android access granted' : 'Android access not granted',
-                        style: Theme.of(context).textTheme.titleMedium,
+                      _setupHeading(context, '01', 'Choose your apps', s.packages.isNotEmpty),
+                      const SizedBox(height: 12),
+                      AppCard(
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            Text('Only selected apps are saved.', style: theme.textTheme.bodySmall),
+                            const SizedBox(height: 12),
+                            Wrap(
+                              spacing: 8,
+                              runSpacing: 8,
+                              children: [
+                                for (final entry in {
+                                  ...notificationApps,
+                                  for (final p in s.packages)
+                                    if (!notificationApps.containsKey(p)) p: p,
+                                }.entries)
+                                  FilterChip(
+                                    label: Text(entry.value),
+                                    selected: s.packages.contains(entry.key),
+                                    side: BorderSide(
+                                      color: s.packages.contains(entry.key)
+                                          ? theme.colorScheme.primary
+                                          : theme.colorScheme.outlineVariant,
+                                    ),
+                                    onSelected: _busy
+                                        ? null
+                                        : (on) {
+                                            final selected = {...s.packages};
+                                            if (on) {
+                                              selected.add(entry.key);
+                                            } else {
+                                              selected.remove(entry.key);
+                                            }
+                                            _change(() => _configure(s.enabled && selected.isNotEmpty, selected));
+                                          },
+                                  ),
+                              ],
+                            ),
+                          ],
+                        ),
                       ),
-                      TextButton(
-                        onPressed: _busy ? null : () => _change(api.openSettings),
-                        child: const Text('Open Android notification access'),
+                      const SizedBox(height: 24),
+                      _setupHeading(context, '02', 'Allow Android access', s.accessGranted),
+                      const SizedBox(height: 12),
+                      AppCard(
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            Text(
+                              s.accessGranted ? 'Android access granted' : 'Android access not granted',
+                              style: theme.textTheme.titleSmall,
+                            ),
+                            const SizedBox(height: 8),
+                            const Text(
+                              'Android grants access to notifications across your phone. Kankoo stores only the apps you selected.',
+                            ),
+                            const SizedBox(height: 14),
+                            OutlinedButton(
+                              onPressed: _busy ? null : () => _change(api.openSettings),
+                              child: const Text('Open Android notification access'),
+                            ),
+                          ],
+                        ),
                       ),
-                      SwitchListTile(
-                        contentPadding: EdgeInsets.zero,
-                        title: const Text('Capture selected apps'),
-                        subtitle: const Text('Turning this off keeps records already captured.'),
-                        value: s.enabled,
-                        onChanged: _busy || s.packages.isEmpty ? null : (v) => _change(() => _configure(v, s.packages)),
+                      const SizedBox(height: 24),
+                      _setupHeading(context, '03', 'Start capturing', s.enabled && s.accessGranted),
+                      const SizedBox(height: 12),
+                      AppCard(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                        child: SwitchListTile(
+                          contentPadding: EdgeInsets.zero,
+                          title: const Text('Capture selected apps'),
+                          subtitle: const Text('Turning this off keeps records already captured.'),
+                          value: s.enabled,
+                          onChanged: _busy || s.packages.isEmpty
+                              ? null
+                              : (v) => _change(() => _configure(v, s.packages)),
+                        ),
                       ),
-                      if (s.packages.isEmpty) const Text('Select at least one app to enable capture.'),
+                      if (s.packages.isEmpty)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 8),
+                          child: Text('Select at least one app to enable capture.', style: theme.textTheme.bodySmall),
+                        ),
                       if (s.enabled && !s.accessGranted)
                         reviewNotice(
                           context,
                           'Capture is enabled in Kankoo, but Android access is missing. Grant access above to receive new alerts.',
-                        ),
-                      const SizedBox(height: 20),
-                      Text('Apps to capture', style: Theme.of(context).textTheme.titleMedium),
-                      const Text(
-                        'Select only apps you use. A listed app is not a guarantee that its notification format can be parsed.',
-                      ),
-                      for (final entry in {
-                        ...notificationApps,
-                        for (final p in s.packages)
-                          if (!notificationApps.containsKey(p)) p: p,
-                      }.entries)
-                        CheckboxListTile(
-                          contentPadding: EdgeInsets.zero,
-                          controlAffinity: ListTileControlAffinity.leading,
-                          title: Text(entry.value),
-                          value: s.packages.contains(entry.key),
-                          onChanged: _busy
-                              ? null
-                              : (on) {
-                                  final selected = {...s.packages};
-                                  if (on == true) {
-                                    selected.add(entry.key);
-                                  } else {
-                                    selected.remove(entry.key);
-                                  }
-                                  _change(() => _configure(s.enabled && selected.isNotEmpty, selected));
-                                },
-                        ),
-                      const SizedBox(height: 20),
-                      Text('Processing status', style: Theme.of(context).textTheme.titleMedium),
-                      Text('${s.pending} waiting · ${s.quarantined} unreadable records retained'),
-                      if (s.lastProcessed != null)
-                        Text('Last batch: ${DateFormat('d MMM yyyy, HH:mm').format(s.lastProcessed!)}'),
-                      if (s.captureError)
-                        reviewNotice(
-                          context,
-                          'An alert could not be saved. Check storage and access, then retry. Notifications missed before saving may require a statement import.',
                           review: true,
                         ),
-                      if (s.processingError)
-                        reviewNotice(
-                          context,
-                          'Processing was interrupted. Saved notifications remain encrypted and will be retried.',
-                          review: true,
+                      const SizedBox(height: 28),
+                      const LedgerEyebrow('Processing status'),
+                      const SizedBox(height: 12),
+                      AppCard(
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            Text(
+                              '${s.pending} waiting · ${s.quarantined} unreadable records retained',
+                              style: theme.textTheme.titleSmall,
+                            ),
+                            if (s.lastProcessed != null)
+                              Padding(
+                                padding: const EdgeInsets.only(top: 6),
+                                child: Text(
+                                  'Last batch: ${DateFormat('d MMM yyyy, HH:mm').format(s.lastProcessed!)}',
+                                  style: theme.textTheme.bodySmall,
+                                ),
+                              ),
+                            if (s.captureError)
+                              reviewNotice(
+                                context,
+                                'An alert could not be saved. Check storage and access, then retry. Notifications missed before saving may require a statement import.',
+                                review: true,
+                              ),
+                            if (s.processingError)
+                              reviewNotice(
+                                context,
+                                'Processing was interrupted. Saved notifications remain encrypted and will be retried.',
+                                review: true,
+                              ),
+                            if (s.quarantined > 0)
+                              reviewNotice(
+                                context,
+                                'Some records could not be decrypted. Their encrypted bytes were kept. Retry after restoring access; no key is replaced.',
+                                review: true,
+                              ),
+                            const SizedBox(height: 14),
+                            FilledButton(
+                              onPressed: _busy || !s.enabled ? null : () => _change(api.retry),
+                              child: const Text('Retry pending records'),
+                            ),
+                            TextButton(
+                              onPressed: () => context.push('/messages?source=notification'),
+                              child: const Text('Review parsed and unreadable alerts'),
+                            ),
+                          ],
                         ),
-                      if (s.quarantined > 0)
-                        reviewNotice(
-                          context,
-                          'Some records could not be decrypted. Their encrypted bytes were kept. Retry after restoring access; no key is replaced.',
-                          review: true,
-                        ),
-                      FilledButton(
-                        onPressed: _busy || !s.enabled ? null : () => _change(api.retry),
-                        child: const Text('Retry pending records'),
-                      ),
-                      TextButton(
-                        onPressed: () => context.push('/messages?source=notification'),
-                        child: const Text('Review parsed and unreadable alerts'),
                       ),
                     ],
+                    const SizedBox(height: 16),
+                    const ExpansionTile(
+                      title: Text('Privacy and capture limits'),
+                      children: [
+                        Text(
+                          'Capture starts after you enable it and grant access. Android may delay background work. Force-stopping Kankoo, hidden notification text or disabled bank alerts can prevent capture; reconcile against your bank statement. A listed app is not a guarantee that its notification format can be parsed.',
+                        ),
+                      ],
+                    ),
                     if (api.supported)
                       TextButton(onPressed: _busy ? null : _refresh, child: const Text('Refresh status')),
                   ],
@@ -249,3 +324,20 @@ class _NotificationCaptureScreenState extends ConsumerState<NotificationCaptureS
     ),
   );
 }
+
+Widget _setupHeading(BuildContext context, String number, String title, bool complete) => Row(
+  children: [
+    Container(
+      width: 28,
+      height: 28,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surfaceContainerHigh,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: complete ? const Icon(Icons.check, size: 16) : Text(number, style: Theme.of(context).textTheme.labelSmall),
+    ),
+    const SizedBox(width: 10),
+    Expanded(child: Text(title, style: Theme.of(context).textTheme.titleMedium)),
+  ],
+);

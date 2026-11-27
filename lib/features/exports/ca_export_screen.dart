@@ -7,6 +7,8 @@ import '../../core/security/app_lock.dart';
 import '../../documents/vault/pdf_vault.dart';
 import '../../exports/ca_bundle.dart';
 import '../../ui/ledger_theme.dart';
+import '../../ui/ledger_brand.dart';
+import '../../ui/widgets.dart';
 import '../reconciliation/reconciliation_widgets.dart';
 import 'ca_export_providers.dart';
 
@@ -73,33 +75,55 @@ class _CaExportScreenState extends ConsumerState<CaExportScreen> {
                 child: ListView(
                   padding: const EdgeInsets.fromLTRB(20, 16, 20, 40),
                   children: [
+                    const LedgerEyebrow('Monthly handoff'),
+                    const SizedBox(height: 10),
                     Text(DateFormat('MMMM yyyy').format(widget.month), style: theme.textTheme.headlineMedium),
-                    const SizedBox(height: 12),
-                    const Text('One monthly handoff, with the original evidence.'),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Your ledger and original evidence, together.',
+                      style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                    ),
                     const SizedBox(height: 24),
                     preview.when(
-                      data: (p) => Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          _line(context, 'Monthly payments', '${p.payments}'),
-                          _line(context, 'Original PDFs to verify', '${p.pdfs}'),
-                          _line(context, 'Unreviewed payments', '${p.unreviewed}'),
-                          _line(context, 'Personal payments', '${p.personal}'),
-                          _line(context, 'Foreign-currency rows', '${p.foreign}'),
-                          _line(context, 'Self-transfers', '${p.transfers}'),
-                        ],
+                      data: (p) => AppCard(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Expanded(child: _metric(context, 'Monthly payments', p.payments)),
+                                const SizedBox(width: 20),
+                                Expanded(child: _metric(context, 'Original PDFs', p.pdfs)),
+                              ],
+                            ),
+                            const SizedBox(height: 18),
+                            const Divider(height: 1),
+                            ExpansionTile(
+                              title: const Text('Review included rows'),
+                              subtitle: Text('${p.unreviewed} unreviewed · ${p.personal} personal'),
+                              children: [
+                                _line(context, 'Foreign-currency rows', '${p.foreign}'),
+                                _line(context, 'Self-transfers', '${p.transfers}'),
+                                const Text(
+                                  'All month payments are included. Related payments from other months appear separately to explain invoice balances.',
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
                       ),
                       loading: () => const LinearProgressIndicator(),
                       error: (_, _) => reviewNotice(
                         context,
                         'The monthly preview could not be loaded. Retry without changing your ledger.',
-                        error: true,
+                        review: true,
                       ),
                     ),
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 12),
                     reviewNotice(
                       context,
-                      'The ZIP contains readable financial records and PDFs. Choose a secure location and share it with your CA carefully. This is a monthly handoff, not a complete restorable app backup.',
+                      'Contains readable financial records and PDFs. Save securely. This is a CA handoff, not a complete restorable app backup.',
                     ),
                     if (_error != null) reviewNotice(context, _error!, error: true),
                     if (_result != null) reviewNotice(context, _result!),
@@ -110,34 +134,35 @@ class _CaExportScreenState extends ConsumerState<CaExportScreen> {
                           : _save,
                       icon: _busy
                           ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
-                          : const Icon(Icons.save_alt),
+                          : const Icon(Icons.save_alt, size: 19),
                       label: Text(_busy ? 'Verifying PDFs and preparing files…' : 'Save CA bundle (ZIP)'),
                     ),
                     TextButton(
                       onPressed: _busy ? null : () => ref.invalidate(caExportPreviewProvider(widget.month)),
                       child: const Text('Refresh preview'),
                     ),
+                    const SizedBox(height: 12),
+                    const ExpansionTile(
+                      title: Text('Inside the ZIP'),
+                      subtitle: Text('CSV ledgers, original PDFs and an audit trail'),
+                      children: [
+                        Text(
+                          'Excel-compatible CSV ledgers, currency summaries, invoice details, payment/refund allocations, source references, audit history and a SHA-256 manifest. Original PDFs are renamed and linked by filename.',
+                        ),
+                        SizedBox(height: 12),
+                        Text(
+                          'Evidence Matched is not tax approval. Business use and GST eligibility stay separate for your CA to review.',
+                        ),
+                      ],
+                    ),
                     const SizedBox(height: 28),
-                    Text('Inside the ZIP', style: theme.textTheme.titleMedium),
+                    const LedgerEyebrow('Generated snapshots'),
                     const SizedBox(height: 8),
-                    const Text(
-                      'Excel-compatible CSV ledgers, currency summaries, invoice details, payment/refund allocations, statement import references, audit history and a SHA-256 file manifest. Original PDFs are renamed and linked by filename.',
+                    Text(
+                      'Generation history does not confirm saving, delivery or CA acceptance.',
+                      style: theme.textTheme.bodySmall,
                     ),
-                    const SizedBox(height: 12),
-                    const Text(
-                      'All payments for this month are included, with personal, unreviewed, foreign-currency and transfer rows labelled. Related payments from other months appear separately to explain invoice balances.',
-                    ),
-                    const SizedBox(height: 12),
-                    const Text(
-                      'Evidence Matched is not tax approval. Business use and GST eligibility stay separate for your CA to review.',
-                    ),
-                    const SizedBox(height: 28),
-                    Text('Generated snapshots', style: theme.textTheme.titleMedium),
-                    const SizedBox(height: 8),
-                    const Text(
-                      'History records successful generation. It does not confirm a file was saved, delivered or accepted by your CA.',
-                    ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 14),
                     history.when(
                       data: (runs) => Column(
                         children: [
@@ -148,31 +173,47 @@ class _CaExportScreenState extends ConsumerState<CaExportScreen> {
                             ),
                           for (final run in runs)
                             Padding(
-                              padding: const EdgeInsets.only(bottom: 18),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.stretch,
-                                children: [
-                                  Text(
-                                    'Export #${run.id} · ${DateFormat('d MMM yyyy, HH:mm').format(run.createdAt.toLocal())}',
-                                    style: theme.textTheme.titleSmall,
-                                  ),
-                                  Text('${run.includedCount} monthly payments · format ${run.formatVersion}'),
-                                  const SizedBox(height: 6),
-                                  SelectableText(run.manifestSha256, style: theme.textTheme.bodySmall),
-                                  Align(
-                                    alignment: Alignment.centerLeft,
-                                    child: TextButton(
-                                      onPressed: () async {
-                                        await Clipboard.setData(ClipboardData(text: run.manifestSha256));
-                                        if (context.mounted) {
-                                          ScaffoldMessenger.of(context)
-                                              .showSnackBar(const SnackBar(content: Text('Manifest SHA-256 copied')));
-                                        }
-                                      },
-                                      child: const Text('Copy manifest SHA-256'),
+                              padding: const EdgeInsets.only(bottom: 12),
+                              child: AppCard(
+                                padding: const EdgeInsets.all(16),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                                  children: [
+                                    Text('Export #${run.id}', style: theme.textTheme.titleMedium),
+                                    const SizedBox(height: 3),
+                                    Text(
+                                      DateFormat('d MMM yyyy, HH:mm').format(run.createdAt.toLocal()),
+                                      style: theme.textTheme.bodySmall,
                                     ),
-                                  ),
-                                ],
+                                    const SizedBox(height: 10),
+                                    Text(
+                                      '${run.includedCount} monthly payments · format ${run.formatVersion}',
+                                      style: theme.textTheme.bodySmall,
+                                    ),
+                                    ExpansionTile(
+                                      title: const Text('Verification details'),
+                                      children: [
+                                        SelectableText(
+                                          run.manifestSha256,
+                                          style: theme.textTheme.bodySmall?.copyWith(fontFamily: 'monospace'),
+                                        ),
+                                      ],
+                                    ),
+                                    Align(
+                                      alignment: Alignment.centerLeft,
+                                      child: TextButton.icon(
+                                        onPressed: () async {
+                                          await Clipboard.setData(ClipboardData(text: run.manifestSha256));
+                                          if (context.mounted)
+                                            ScaffoldMessenger.of(context)
+                                                .showSnackBar(const SnackBar(content: Text('Manifest SHA-256 copied')));
+                                        },
+                                        icon: const Icon(Icons.copy_outlined, size: 16),
+                                        label: const Text('Copy manifest SHA-256'),
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ),
                             ),
                         ],
@@ -191,8 +232,16 @@ class _CaExportScreenState extends ConsumerState<CaExportScreen> {
   );
 }
 
+Widget _metric(BuildContext context, String label, int count) => Column(
+  crossAxisAlignment: CrossAxisAlignment.start,
+  children: [
+    Text(label, style: Theme.of(context).textTheme.bodySmall),
+    const SizedBox(height: 6),
+    Text('$count', style: Theme.of(context).textTheme.displaySmall),
+  ],
+);
 Widget _line(BuildContext context, String label, String value) => Padding(
-  padding: const EdgeInsets.symmetric(vertical: 8),
+  padding: const EdgeInsets.symmetric(vertical: 6),
   child: Wrap(
     alignment: WrapAlignment.spaceBetween,
     spacing: 16,

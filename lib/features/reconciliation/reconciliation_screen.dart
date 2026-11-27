@@ -14,13 +14,15 @@ import 'reconciliation_widgets.dart';
 import 'split_sheet.dart';
 
 class ReconciliationScreen extends ConsumerStatefulWidget {
-  const ReconciliationScreen({super.key, this.initialMonth});
+  const ReconciliationScreen({super.key, this.initialMonth, this.initialFilter});
   final DateTime? initialMonth;
+  final String? initialFilter;
   @override
   ConsumerState<ReconciliationScreen> createState() => _ReconciliationScreenState();
 }
 
 class _ReconciliationScreenState extends ConsumerState<ReconciliationScreen> {
+  final _filterScroll = ScrollController();
   late DateTime _month;
   String _filter = 'Unreviewed', _search = '';
   String? _error;
@@ -31,6 +33,27 @@ class _ReconciliationScreenState extends ConsumerState<ReconciliationScreen> {
     super.initState();
     final date = widget.initialMonth ?? DateTime.now();
     _month = DateTime(date.year, date.month);
+    if (const [
+      'Unreviewed',
+      'All',
+      'Business',
+      'Personal',
+      'Needs Evidence',
+      'Bank checks',
+    ].contains(widget.initialFilter)) {
+      _filter = widget.initialFilter!;
+    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && _filterScroll.hasClients && const ['Needs Evidence', 'Bank checks'].contains(_filter)) {
+        _filterScroll.jumpTo(_filterScroll.position.maxScrollExtent);
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _filterScroll.dispose();
+    super.dispose();
   }
 
   Future<void> _classify(ReviewRow row, int bps, {bool remember = false}) async {
@@ -78,6 +101,7 @@ class _ReconciliationScreenState extends ConsumerState<ReconciliationScreen> {
             'Business' => r.transaction.businessUseBps > 0,
             'Personal' => r.reviewed && r.transaction.businessUseBps == 0,
             'Needs Evidence' => r.transaction.businessUseBps > 0 && r.status != 'Evidence Matched',
+            'Bank checks' => r.transaction.status == TxnStatus.needsReview || r.status == 'Mismatch',
             _ => true,
           };
         }).toList() ??
@@ -128,10 +152,7 @@ class _ReconciliationScreenState extends ConsumerState<ReconciliationScreen> {
                           ],
                         ),
                         const SizedBox(height: 8),
-                        Text(
-                          'Personal, business or split. Keep the evidence with the payment.',
-                          style: theme.textTheme.bodyMedium,
-                        ),
+                        Text('Review the split. Keep the evidence.', style: theme.textTheme.bodyMedium),
                         const SizedBox(height: 12),
                         Container(
                           padding: const EdgeInsets.symmetric(vertical: 12),
@@ -166,33 +187,45 @@ class _ReconciliationScreenState extends ConsumerState<ReconciliationScreen> {
                           ),
                         ),
                         const SizedBox(height: 12),
-                        Wrap(
-                          spacing: 8,
-                          runSpacing: 4,
-                          children: [
-                            TextButton.icon(
-                              onPressed: () => context.push('/statements/import'),
-                              icon: const Icon(Icons.upload_file_outlined, size: 18),
-                              label: const Text('Import CSV'),
-                            ),
-                            TextButton.icon(
-                              onPressed: () => showLedgerSheet(context, const InvoiceLibrary()),
-                              icon: const Icon(Icons.description_outlined, size: 18),
-                              label: Text('Invoices${snapshot == null ? '' : ' · ${snapshot.invoices.length}'}'),
-                            ),
-                            TextButton.icon(
-                              onPressed: snapshot == null ? null : () => _showRules(context, snapshot),
-                              icon: const Icon(Icons.tune, size: 18),
-                              label: const Text('Rules'),
-                            ),
-                            TextButton.icon(
-                              onPressed: _busy != null
-                                  ? null
-                                  : () => context.push('/ca/export?month=${DateFormat('yyyy-MM').format(_month)}'),
-                              icon: const Icon(Icons.folder_zip_outlined, size: 18),
-                              label: const Text('Export for CA'),
-                            ),
-                          ],
+                        LayoutBuilder(
+                          builder: (context, constraints) {
+                            final columns = MediaQuery.textScalerOf(context).scale(14) > 18 ? 2 : 4;
+                            return Wrap(
+                              children:
+                                  [
+                                        _BookAction(
+                                          icon: Icons.upload_file_outlined,
+                                          label: 'Import CSV',
+                                          onPressed: _busy != null ? null : () => context.push('/statements/import'),
+                                        ),
+                                        _BookAction(
+                                          icon: Icons.description_outlined,
+                                          label: 'Invoices',
+                                          onPressed: _busy != null
+                                              ? null
+                                              : () => showLedgerSheet(context, const InvoiceLibrary()),
+                                        ),
+                                        _BookAction(
+                                          icon: Icons.tune,
+                                          label: 'Rules',
+                                          onPressed: snapshot == null || _busy != null
+                                              ? null
+                                              : () => _showRules(context, snapshot),
+                                        ),
+                                        _BookAction(
+                                          icon: Icons.folder_zip_outlined,
+                                          label: 'Export for CA',
+                                          onPressed: _busy != null
+                                              ? null
+                                              : () => context.push(
+                                                  '/ca/export?month=${DateFormat('yyyy-MM').format(_month)}',
+                                                ),
+                                        ),
+                                      ]
+                                      .map((action) => SizedBox(width: constraints.maxWidth / columns, child: action))
+                                      .toList(),
+                            );
+                          },
                         ),
                         const SizedBox(height: 8),
                         TextField(
@@ -204,11 +237,19 @@ class _ReconciliationScreenState extends ConsumerState<ReconciliationScreen> {
                         ),
                         const SizedBox(height: 14),
                         SingleChildScrollView(
+                          controller: _filterScroll,
                           scrollDirection: Axis.horizontal,
                           child: Row(
                             spacing: 8,
                             children: [
-                              for (final filter in ['Unreviewed', 'All', 'Business', 'Personal', 'Needs Evidence'])
+                              for (final filter in [
+                                'Unreviewed',
+                                'All',
+                                'Business',
+                                'Personal',
+                                'Needs Evidence',
+                                'Bank checks',
+                              ])
                                 ChoiceChip(
                                   label: Text(filter),
                                   selected: _filter == filter,
@@ -263,7 +304,7 @@ class _ReconciliationScreenState extends ConsumerState<ReconciliationScreen> {
                           ),
                         const SizedBox(height: 12),
                         Text(
-                          'INR payments only. Self-transfers are excluded. GST credit eligibility is assessed separately.',
+                          'INR only · self-transfers excluded. GST review is separate.',
                           style: theme.textTheme.bodySmall,
                         ),
                         const SizedBox(height: 12),
@@ -363,9 +404,15 @@ class _ReconciliationScreenState extends ConsumerState<ReconciliationScreen> {
             ],
           ),
           const SizedBox(height: 10),
-          Text(t.merchant ?? 'Payment without a merchant', style: theme.textTheme.titleMedium),
-          const SizedBox(height: 6),
-          Text(formatInrMinor(t.amountMinor), style: theme.textTheme.titleLarge),
+          Wrap(
+            alignment: WrapAlignment.spaceBetween,
+            spacing: 16,
+            runSpacing: 6,
+            children: [
+              Text(t.merchant ?? 'Payment without a merchant', style: theme.textTheme.titleMedium),
+              Text(formatInrMinor(t.amountMinor), style: theme.textTheme.titleLarge),
+            ],
+          ),
           if (t.businessUseBps > 0)
             Padding(
               padding: const EdgeInsets.only(top: 4),
@@ -419,6 +466,26 @@ class _ReconciliationScreenState extends ConsumerState<ReconciliationScreen> {
 
   Future<void> _showRules(BuildContext context, ReviewSnapshot snapshot) =>
       showLedgerSheet(context, _RulesSheet(month: _month));
+}
+
+class _BookAction extends StatelessWidget {
+  const _BookAction({required this.icon, required this.label, required this.onPressed});
+  final IconData icon;
+  final String label;
+  final VoidCallback? onPressed;
+  @override
+  Widget build(BuildContext context) => TextButton(
+    onPressed: onPressed,
+    style: TextButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 12)),
+    child: Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 21),
+        const SizedBox(height: 7),
+        Text(label, textAlign: TextAlign.center, style: Theme.of(context).textTheme.labelSmall),
+      ],
+    ),
+  );
 }
 
 class _RulesSheet extends ConsumerStatefulWidget {

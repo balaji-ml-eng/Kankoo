@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import '../core/theme/icons.dart';
 
 import '../core/format.dart';
+import '../core/money_minor.dart';
+import 'ledger_theme.dart';
 import '../core/theme/category_icons.dart';
 import '../core/theme/palette.dart';
 import '../data/db/database.dart';
@@ -24,14 +26,15 @@ class CategoryBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = isTransfer ? Palette.neutral : Color(category?.color ?? Palette.neutral.toARGB32());
+    final color = context.colors.onSurfaceVariant;
     final icon = isTransfer ? PhosphorIconsFill.arrowsLeftRight : CategoryIcons.of(category?.icon);
     return Container(
       width: size,
       height: size,
       decoration: BoxDecoration(
-        color: color.withValues(alpha: context.isDark ? 0.18 : 0.14),
-        borderRadius: BorderRadius.circular(size * 0.34),
+        color: context.colors.surface,
+        border: Border.all(color: context.colors.outlineVariant),
+        borderRadius: BorderRadius.circular(size * 0.28),
       ),
       alignment: Alignment.center,
       child: Icon(icon, color: color, size: size * 0.5),
@@ -84,80 +87,95 @@ String txnTitle(Transaction t) =>
 
 class TransactionTile extends StatelessWidget {
   const TransactionTile({super.key, required this.view, this.onTap, this.showDate = false});
-
   final TxnView view;
   final VoidCallback? onTap;
   final bool showDate;
-
   @override
   Widget build(BuildContext context) {
-    final t = view.txn;
-    final credit = t.direction == TxnDirection.credit;
+    final t = view.txn, credit = view.txn.direction == TxnDirection.credit;
     final subtitle = [
       if (t.isTransfer) 'Transfer' else view.category?.name ?? 'Uncategorised',
       showDate ? dayLabel(t.occurredAt) : timeLabel(t.occurredAt),
-      if (view.account != null) view.account!.last4 == null ? view.account!.name : '••${view.account!.last4}',
-    ].join('  ·  ');
-
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(18),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
-        child: Row(
+      if (view.account != null) view.account!.last4 == null ? view.account!.name : '\u2022\u2022${view.account!.last4}',
+    ].join('  \u00b7  ');
+    final amount =
+        '${credit ? '+' : '\u2212'}${t.currency == 'INR' ? formatInrMinor(t.amountMinor) : money(t.amountMinor, currency: t.currency)}';
+    Widget details(bool compact) => Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
           children: [
-            CategoryBadge(category: view.category, isTransfer: t.isTransfer),
-            const SizedBox(width: 14),
             Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Flexible(
-                        child: Text(
-                          txnTitle(t),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: context.text.titleMedium,
-                        ),
-                      ),
-                      if (t.status == TxnStatus.needsReview) ...[
-                        const SizedBox(width: 6),
-                        const Icon(PhosphorIconsFill.warningCircle, size: 15, color: Palette.amber),
-                      ],
-                    ],
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    subtitle,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: context.text.bodySmall?.copyWith(color: context.colors.onSurfaceVariant),
-                  ),
-                ],
+              child: Text(
+                txnTitle(t),
+                maxLines: compact ? 2 : 1,
+                overflow: TextOverflow.ellipsis,
+                style: context.text.titleMedium,
               ),
             ),
-            const SizedBox(width: 12),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Text(
-                  '${credit ? '+' : '−'}${money(t.amountMinor, currency: t.currency)}',
-                  style: context.text.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w700,
-                    color: t.isTransfer
-                        ? context.colors.onSurfaceVariant
-                        : credit
-                        ? Palette.income
-                        : context.colors.onSurface,
-                    fontFeatures: const [FontFeature.tabularFigures()],
-                  ),
-                ),
-                if (t.isForeign) ForeignAmountNote(txn: t),
-              ],
-            ),
+            if (t.status == TxnStatus.needsReview)
+              const Padding(
+                padding: EdgeInsets.only(left: 5),
+                child: Icon(Icons.error_outline, size: 16, color: LedgerColors.review),
+              ),
           ],
+        ),
+        const SizedBox(height: 3),
+        Text(
+          subtitle,
+          maxLines: compact ? 2 : 1,
+          overflow: TextOverflow.ellipsis,
+          style: context.text.bodySmall?.copyWith(color: context.colors.onSurfaceVariant),
+        ),
+      ],
+    );
+    Widget value(bool compact) => Column(
+      crossAxisAlignment: compact ? CrossAxisAlignment.start : CrossAxisAlignment.end,
+      children: [
+        FittedBox(
+          fit: BoxFit.scaleDown,
+          alignment: compact ? Alignment.centerLeft : Alignment.centerRight,
+          child: Text(
+            amount,
+            style: context.text.titleMedium?.copyWith(
+              fontWeight: FontWeight.w600,
+              color: t.isTransfer ? context.colors.onSurfaceVariant : context.colors.onSurface,
+              fontFeatures: const [FontFeature.tabularFigures()],
+            ),
+          ),
+        ),
+        if (t.isForeign) ForeignAmountNote(txn: t),
+      ],
+    );
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 14),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final compact =
+                constraints.maxWidth < 300 || MediaQuery.textScalerOf(context).scale(16) > 20 || amount.length > 18;
+            return Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                CategoryBadge(category: view.category, isTransfer: t.isTransfer, size: 40),
+                const SizedBox(width: 12),
+                if (compact)
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [details(true), const SizedBox(height: 8), value(true)],
+                    ),
+                  )
+                else ...[
+                  Expanded(flex: 4, child: details(false)),
+                  const SizedBox(width: 12),
+                  Expanded(flex: 3, child: value(false)),
+                ],
+              ],
+            );
+          },
         ),
       ),
     );
@@ -200,17 +218,14 @@ class EmptyState extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         Container(
-          width: 88,
-          height: 88,
+          width: 64,
+          height: 64,
           decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            gradient: LinearGradient(
-              colors: [Palette.violet.withValues(alpha: 0.28), Palette.mint.withValues(alpha: 0.18)],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: context.colors.outlineVariant),
+            color: context.colors.surface,
           ),
-          child: Icon(icon, size: 40, color: Palette.violet),
+          child: Icon(icon, size: 28, color: context.colors.onSurfaceVariant),
         ),
         const SizedBox(height: 20),
         Text(title, style: context.text.titleLarge, textAlign: TextAlign.center),
